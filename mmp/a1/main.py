@@ -24,6 +24,8 @@ def build_batch(paths: Sequence[str], transform=None) -> torch.Tensor:
     for path in paths:
         img = Image.open(path)
         img_tensor = transform(img) if transform else tfm(img)
+        if not isinstance(img_tensor, torch.Tensor):
+            img_tensor = torch.tensor(img_tensor)
         images.append(img_tensor)
 
     img_batch = torch.stack(images)
