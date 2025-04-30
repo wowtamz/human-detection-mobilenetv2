@@ -10,7 +10,12 @@ def avg_color(img: torch.Tensor):
 
 def mask(foreground: torch.Tensor, background: torch.Tensor, mask_tensor: torch.Tensor, threshold: float):
     
-    condition = mask_tensor > threshold
+    if mask_tensor.dim() == 2:
+        mask_tensor = mask_tensor.unsqueeze(0)
+    
+    mask_expanded = mask_tensor.expand_as(foreground)
+
+    condition = mask_expanded > threshold
     background[condition] = foreground
     return background
 
