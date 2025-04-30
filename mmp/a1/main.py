@@ -14,10 +14,12 @@ def build_batch(paths: Sequence[str], transform=None) -> torch.Tensor:
     """
 
     images = list()
+    transforms = list()
     
-    transforms = transform.transforms if transform else list()
-
-    if len(list(filter(lambda x: isinstance(x, torchvision.transforms.Resize), transforms))) == 0:
+    if transform:
+        transforms.append(transform)
+    
+    if not isinstance(transform, torchvision.transforms.Resize):
         transforms.append(torchvision.transforms.Resize((224, 224)))
 
     transforms.append(torchvision.transforms.ToTensor())
@@ -46,6 +48,18 @@ def get_model() -> torch.nn.Module:
     
     return model
 
+def print_predictions(title, model, img_batch, img_paths, classmap):
+    
+    print(8*"*")
+    print(f"{title}")
+    print(8*"*")
+
+    output = model(img_batch)
+    top_pred = output.argmax(dim=1)
+
+    for i in range(len(img_paths)):
+        expecting = img_paths[i].removeprefix("images/").removesuffix(".jpg").capitalize()
+        print(f"Prediction for {expecting}: {classmap[top_pred[i]]}")
 
 def main():
     """Exercise 1.3
@@ -67,55 +81,19 @@ def main():
     def_img_batch = build_batch(img_paths)
 
     # (b)
-    tfm_b = torchvision.transforms.Compose([
-        torchvision.transforms.Resize((512, 512))
-        
-    ])
-    resized_img_batch = build_batch(img_paths, tfm_b)
+    resized_img_batch = build_batch(img_paths, torchvision.transforms.Resize((512, 512)))
 
     # (c)
-    tfm_c = torchvision.transforms.Compose([
-        torchvision.transforms.RandomVerticalFlip(1.0)
-    ])
-    vertically_flipped_img_batch = build_batch(img_paths, tfm_c)
+    vertically_flipped_img_batch = build_batch(img_paths, torchvision.transforms.RandomVerticalFlip(1.0))
 
     model = get_model()
 
     with open("imagenet_classes.json") as f:
         classmap = json.load(f)
 
-    print(8*"*")
-    print("Default transforms")
-    print(8*"*")
-
-    output = model(def_img_batch)
-    top_pred = output.argmax(dim=1)
-
-    for i in range(len(img_paths)):
-        expecting = img_paths[i].removeprefix("images/").removesuffix(".jpg").capitalize()
-        print(f"Prediction for {expecting}: {classmap[top_pred[i]]}")
-    
-    print(8*"*")
-    print("Resized images to 512 x 512")
-    print(8*"*")
-
-    output = model(resized_img_batch)
-    top_pred = output.argmax(dim=1)
-
-    for i in range(len(img_paths)):
-        expecting = img_paths[i].removeprefix("images/").removesuffix(".jpg").capitalize()
-        print(f"Prediction for {expecting}: {classmap[top_pred[i]]}")
-
-    print(8*"*")
-    print("Flipped images vertically")
-    print(8*"*")
-
-    output = model(vertically_flipped_img_batch)
-    top_pred = output.argmax(dim=1)
-
-    for i in range(len(img_paths)):
-        expecting = img_paths[i].removeprefix("images/").removesuffix(".jpg").capitalize()
-        print(f"Prediction for {expecting}: {classmap[top_pred[i]]}")
+    print_predictions("Default Transforms", model, def_img_batch, img_paths, classmap)
+    print_predictions("Resized Images to 512 x 512", model, resized_img_batch, img_paths, classmap)
+    print_predictions("Flipped Images Vertically", model, vertically_flipped_img_batch, img_paths, classmap)
 
 if __name__ == "__main__":
     main()
