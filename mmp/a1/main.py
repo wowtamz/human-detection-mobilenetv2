@@ -1,9 +1,9 @@
 from typing import Sequence
 from PIL import Image
+import numpy as np
 import json
 import torch
 import torchvision
-import PIL
 
 def build_batch(paths: Sequence[str], transform=None) -> torch.Tensor:
     """Exercise 1.1
@@ -22,8 +22,9 @@ def build_batch(paths: Sequence[str], transform=None) -> torch.Tensor:
     ])
 
     for path in paths:
-        img = PIL.Image.open(path)
-        img_tensor = transform(img) if transform else tfm(img)
+        img = Image.open(path)
+        img_np = np.array(img)
+        img_tensor = transform(img_np) if transform else tfm(img_np)
         if not isinstance(img_tensor, torch.Tensor):
             img_tensor = torch.tensor(img_tensor)
         images.append(img_tensor)
