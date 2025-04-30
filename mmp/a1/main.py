@@ -16,15 +16,14 @@ def build_batch(paths: Sequence[str], transform=None) -> torch.Tensor:
     images = list()
 
     tfm = torchvision.transforms.Compose([
+        torchvision.transforms.Resize((224, 224)),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        torchvision.transforms.Resize((224, 224))
+        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
     for path in paths:
         img = Image.open(path)
-        img_np = np.array(img)
-        img_tensor = transform(img_np) if transform else tfm(img_np)
+        img_tensor = transform(img) if transform else tfm(img)
         if not isinstance(img_tensor, torch.Tensor):
             img_tensor = torch.tensor(img_tensor)
         images.append(img_tensor)
@@ -65,17 +64,18 @@ def main():
 
     # (b)
     tfm_b = torchvision.transforms.Compose([
+        torchvision.transforms.Resize((512, 512)),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        torchvision.transforms.Resize((512, 512))
+        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        
     ])
     resized_img_batch = build_batch(img_paths, tfm_b)
 
     # (c)
     tfm_c = torchvision.transforms.Compose([
+        torchvision.transforms.Resize((224, 224)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        torchvision.transforms.Resize((224, 224)),
         torchvision.transforms.RandomVerticalFlip(1.0)
     ])
     vertically_flipped_img_batch = build_batch(img_paths, tfm_c)
