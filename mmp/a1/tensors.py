@@ -20,5 +20,5 @@ def mask(foreground: torch.Tensor, background: torch.Tensor, mask_tensor: torch.
     return background
 
 def add_matrix_vector(matrix: torch.Tensor, vector: torch.Tensor):
-    mat = matrix + vector
+    mat = matrix + vector.unsqueeze(1)
     return mat
