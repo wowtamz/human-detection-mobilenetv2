@@ -16,7 +16,7 @@ def mask(foreground: torch.Tensor, background: torch.Tensor, mask_tensor: torch.
     mask_expanded = mask_tensor.expand_as(foreground)
 
     condition = mask_expanded > threshold
-    background[condition] = foreground
+    background[condition] = foreground[condition]
     return background
 
 def add_matrix_vector(matrix: torch.Tensor, vector: torch.Tensor):
