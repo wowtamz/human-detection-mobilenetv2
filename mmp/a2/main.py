@@ -68,9 +68,9 @@ def get_criterion_optimizer(model: nn.Module) -> Tuple[nn.Module, optim.Optimize
     @param model: The model that is being trained.
     @return: Returns a tuple of the criterion and the optimizer.
     """
-    lern_rate = 0.004
+    learn_rate = 0.002
     error_func = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lern_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
     return (error_func, optimizer)
 
 
@@ -147,13 +147,13 @@ def main():
     """Exercise 2.3d"""
 
     model = MmpNet(len(CLASSES))
-    training_dataloader = get_dataloader(True, "data", 64, 1)
+    training_dataloader = get_dataloader(True, "data", 32, 2)
     loss_func, optimizer = get_criterion_optimizer(model)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    for i in range(1):
-        print(f"Training epoc {i}")
+    for i in range(5):
+        print(f"//-- Training epoc {i} --//")
         train_epoch(model, training_dataloader, loss_func, optimizer, device)
     
     testing_dataloader = get_dataloader(False, "data", 1, 1)
