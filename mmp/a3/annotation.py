@@ -2,8 +2,7 @@ from typing import List
 from pathlib import Path
 import numpy as np
 import os
-from PIL import Image
-import cv2 as cv
+from PIL import Image, ImageDraw
 
 class AnnotationRect:
     """Exercise 3.1"""
@@ -54,8 +53,8 @@ def get_img_with_max_annotation_count(path: str) -> str:
             result = (gt_file_path.replace(".gt_data.txt", ".jpg"), annotionCount)
     return result[0]
 
-def draw_annotation(img: np.array, ann: np.array, color = (0,255,0), thickness: int = 3):
-    cv.rectangle(img, (ann[0], ann[1]), (ann[2], ann[3]), color, thickness)
+def draw_annotation(img_draw: np.array, ann: np.array, color = "blue", thickness: int = 3):
+    img_draw.rectangle([(int(ann[0]), int(ann[1])), (int(ann[2]), int(ann[3]))], outline=color, width=thickness)
 
 def draw_img(path: str):
 
@@ -66,11 +65,11 @@ def draw_img(path: str):
     annotations = read_groundtruth_file(groundtruthPath)
 
     for annotation in annotations:
-        draw_annotation(np_img, annotation.__array__())
+        img_draw = ImageDraw.Draw(img)
+        draw_annotation(img_draw, annotation.__array__())
 
-    cv.imshow("Image", np_img)
-    cv.waitKey(1000)
+    img.show()
 
 """Uncomment to draw image for exercise 3.1c"""
-# dataset_dir = f"{Path.cwd().parent.parent}/dataset/train"
-# draw_img_with_max_annotation_count(dataset_dir)
+#dataset_dir = f"{Path.cwd().parent.parent}/dataset/train"
+#draw_img_with_max_annotation_count(dataset_dir)
