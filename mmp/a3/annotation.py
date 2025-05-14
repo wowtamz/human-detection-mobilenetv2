@@ -1,27 +1,76 @@
 from typing import List
+from pathlib import Path
 import numpy as np
-
+import os
+from PIL import Image
+import cv2 as cv
 
 class AnnotationRect:
     """Exercise 3.1"""
 
     def __init__(self, x1, y1, x2, y2):
-        raise NotImplementedError()
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
 
     def area(self):
-        raise NotImplementedError()
+        height = abs(self.y1 - self.y2)
+        width = abs(self.x1 - self.x2)
+        return height * width
 
     def __array__(self) -> np.ndarray:
-        raise NotImplementedError()
+        return np.array([self.x1, self.y1, self.x2, self.y2], dtype=np.int64)
 
     @staticmethod
     def fromarray(arr: np.ndarray):
-        raise NotImplementedError()
-
+        return AnnotationRect(arr[0], arr[1], arr[2], arr[3])
 
 def read_groundtruth_file(path: str) -> List[AnnotationRect]:
     """Exercise 3.1b"""
-    raise NotImplementedError()
 
+    annotationRects = list()
+    with open(path) as f:
+        for line in f.readlines():
+            tokens = line.split(" ")
+            values = np.array(list(float(t) for t in tokens))
+            annotationRects.append(AnnotationRect.fromarray(values))
+    return annotationRects
 
 # put your solution for exercise 3.1c wherever you deem it right
+
+def draw_img_with_max_annotation_count(dir_path):
+    img_path = get_img_with_max_annotation_count(dir_path)
+    draw_img(img_path)
+
+def get_img_with_max_annotation_count(path: str) -> str:
+    groundtruthFiles = list(gt for gt in os.listdir(path) if gt.endswith("gt_data.txt"))
+    result = (None, 0)
+    for gt_filename in groundtruthFiles:
+        gt_file_path = path + gt_filename if path.endswith("/") else path + "/" + gt_filename
+        annotations = read_groundtruth_file(gt_file_path)
+        annotionCount = len(annotations)
+        if result[1] < annotionCount:
+            result = (gt_file_path.replace(".gt_data.txt", ".jpg"), annotionCount)
+    return result[0]
+
+def draw_annotation(img: np.array, ann: np.array, color = (0,255,0), thickness: int = 3):
+    cv.rectangle(img, (ann[0], ann[1]), (ann[2], ann[3]), color, thickness)
+
+def draw_img(path: str):
+
+    img = Image.open(path)
+    np_img = np.array(img)
+
+    groundtruthPath = path.replace(".jpg", ".gt_data.txt")
+    annotations = read_groundtruth_file(groundtruthPath)
+
+    for annotation in annotations:
+        draw_annotation(np_img, annotation.__array__())
+
+    cv.imshow("Image", np_img)
+    cv.waitKey(1000)
+
+"""Uncomment to draw image for exercise 3.1c"""
+# dataset_dir = f"{Path.cwd().parent.parent}/dataset/train"
+# draw_img_with_max_annotation_count(dataset_dir)
