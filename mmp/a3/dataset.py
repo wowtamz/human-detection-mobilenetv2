@@ -37,7 +37,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
         @return: Tuple of image tensor and label. The label is 0 if there is one person and 1 if there a multiple people.
         """
         img_path = self.image_paths[idx]
-        annotations = self.annotation_dict[img_path]
+        if img_path in self.annotation_dict.keys():
+            annotations = self.annotation_dict[img_path]
 
         img = Image.open(img_path)
         width, height = img.size
