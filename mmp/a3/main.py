@@ -1,5 +1,5 @@
 from . import dataset
-from mmp.a2 import main as a2
+from ..a2 import main as a2
 import torch
 from pathlib import Path
 
