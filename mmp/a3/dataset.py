@@ -1,7 +1,6 @@
 from typing import Tuple
 from PIL import Image
-import numpy as np
-import annotation
+from . import annotation
 import os
 import torch
 import torchvision
