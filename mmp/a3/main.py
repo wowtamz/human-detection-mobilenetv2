@@ -1,5 +1,5 @@
 from . import dataset
-from a2 import main as a2
+from mmp.a2 import main as a2
 import torch
 from pathlib import Path
 
@@ -12,7 +12,7 @@ def main():
     batch_size = 32
     num_workers = 0
 
-    train_data_dir = f"{Path.cwd().parent}/dataset/train"
+    train_data_dir = f"{Path.cwd()}/dataset/train"
     train_data_loader = dataset.get_dataloader(train_data_dir, img_size, batch_size, num_workers, True)
 
     loss_func, optimizer = a2.get_criterion_optimizer(model)
@@ -23,13 +23,13 @@ def main():
         print(f"//-- Training epoc {i} --//")
         a2.train_epoch(model, train_data_loader, loss_func, optimizer, device)
 
-    test_data_dir = f"{Path.cwd().parent}/dataset/test"
+    test_data_dir = f"{Path.cwd()}/dataset/test"
     test_data_loader = dataset.get_dataloader(test_data_dir, img_size, batch_size, num_workers, False)
     print(f"\n\n//-- Test Data Benchmarks --//")
     a2.eval_epoch(model, test_data_loader, device)
 
     
-    val_data_dir = f"{Path.cwd().parent}/dataset/val"
+    val_data_dir = f"{Path.cwd()}/dataset/val"
     val_data_loader = dataset.get_dataloader(val_data_dir, img_size, batch_size, num_workers, False)
     print(f"\n\n//-- Validation Data Benchmarks --//")
     a2.eval_epoch(model, val_data_loader, device)
