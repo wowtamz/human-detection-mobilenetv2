@@ -28,7 +28,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
         dictionary = dict()
         for i in self.image_paths:
             gt_path = i.replace(".jpg", ".gt_data.txt")
-            dictionary[i] = annotation.read_groundtruth_file(gt_path)
+            if os.path.exists(gt_path):
+                dictionary[i] = annotation.read_groundtruth_file(gt_path)
         return dictionary
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
