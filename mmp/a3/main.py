@@ -8,7 +8,7 @@ def main():
     model = a2.MmpNet(len(a2.CLASSES))
 
     epochs = 5
-    img_size = 256
+    img_size = 512
     batch_size = 32
     num_workers = 0
 
