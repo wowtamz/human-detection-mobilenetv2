@@ -25,7 +25,11 @@ class MmpNet(nn.Module):
     def __init__(self, num_classes: int):
         super().__init__()
         self.model = torchvision.models.mobilenet_v2(weights = "DEFAULT")
-        self.model.classifier[1].out_features = num_classes
+        classifier_in_features = self.model.classifier[1].in_features
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.2, inplace=False),
+            nn.Linear(classifier_in_features, num_classes)
+        )
 
     def forward(self, x: torch.Tensor):
         out = self.model(x)
@@ -141,6 +145,7 @@ def eval_epoch(model: nn.Module, loader: DataLoader, device: torch.device) -> fl
     accuracy = correct / total
 
     print(f"Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}")
+    return accuracy
 
 
 def main():
