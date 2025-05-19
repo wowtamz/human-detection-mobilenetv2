@@ -1,5 +1,6 @@
 from typing import Sequence
 from PIL import Image
+import random
 import numpy as np
 import json
 import torch
@@ -81,7 +82,8 @@ def main():
     def_img_batch = build_batch(img_paths)
 
     # (b)
-    resized_img_batch = build_batch(img_paths, torchvision.transforms.Resize((512, 512)))
+    img_size = random.randint(128, 720)
+    resized_img_batch = build_batch(img_paths, torchvision.transforms.Resize((img_size, img_size)))
 
     # (c)
     vertically_flipped_img_batch = build_batch(img_paths, torchvision.transforms.RandomVerticalFlip(1.0))
@@ -92,7 +94,7 @@ def main():
         classmap = json.load(f)
 
     print_predictions("Default Transforms", model, def_img_batch, img_paths, classmap)
-    print_predictions("Resized Images to 512 x 512", model, resized_img_batch, img_paths, classmap)
+    print_predictions(f"Resized Images to {img_size} x {img_size}", model, resized_img_batch, img_paths, classmap)
     print_predictions("Flipped Images Vertically", model, vertically_flipped_img_batch, img_paths, classmap)
 
 if __name__ == "__main__":
