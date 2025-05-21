@@ -1,7 +1,6 @@
 from typing import Sequence
 import numpy as np
 
-
 def get_anchor_grid(
     num_rows: int,
     num_cols: int,
@@ -10,19 +9,23 @@ def get_anchor_grid(
     aspect_ratios: Sequence[float],
 ) -> np.ndarray:
     
-    grid = np.ndarray((num_rows, num_cols, anchor_widths, aspect_ratios))
-
-    for i in range(num_rows):
-        for j in range(num_cols):
-            for w in range(len(anchor_widths)):
-                for r in range(len(aspect_ratios)):
+    grid = np.zeros((len(anchor_widths), len(aspect_ratios), num_rows, num_cols, 4), dtype=np.float32)
+    
+    for row in range(num_rows):
+        for col in range(num_cols):
+            center_x = (col * 0.5) * scale_factor
+            center_y = (row * 0.5) * scale_factor
+            for width_idx in range(len(anchor_widths)):
+                for ratio_idx in range(len(aspect_ratios)):
                     # aspect ration = height / width => height = aspect_ration * width
-                    h = r * w
-                    box_center_x = (j * scale_factor) + (scale_factor / 2)
-                    box_center_y = (i * scale_factor) + (scale_factor / 2)
-                    box_x1 = box_center_x - (w / 2)
-                    box_y1 = box_center_y - (h / 2)
-                    box_x2 = box_center_x + (w / 2)
-                    box_y2 = box_center_y + (h / 2)
+                    width = anchor_widths[width_idx]
+                    ratio = aspect_ratios[ratio_idx]
+                    height = ratio * width
+                    
+                    box_x1 = center_x - (width / 2)
+                    box_y1 = center_y - (height / 2)
+                    box_x2 = center_x + (width / 2)
+                    box_y2 = center_y + (height / 2)
 
-                    grid[i][j][w][r] = np.array([box_x1, box_y1, box_x2, box_y2])
+                    grid[width_idx][ratio_idx][row][col] = [box_x1, box_y1, box_x2, box_y2]
+    return grid
