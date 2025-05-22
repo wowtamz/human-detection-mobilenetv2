@@ -4,7 +4,7 @@ from ..a3 import annotation
 from . import anchor_grid
 import numpy as np
 from PIL import Image, ImageDraw
-
+from pathlib import Path
 
 def iou(rect1: AnnotationRect, rect2: AnnotationRect) -> float:
     intersect_rect_x1 = max(rect1.x1, rect2.x1)
@@ -22,8 +22,9 @@ def iou(rect1: AnnotationRect, rect2: AnnotationRect) -> float:
 
     intersect_rect = AnnotationRect(intersect_rect_x1, intersect_rect_y1, intersect_rect_x2, intersect_rect_y2)
     union_rect = AnnotationRect(union_rect_x1, union_rect_y1, union_rect_x2, union_rect_y2)
+    union_area = rect1.area() + rect2.area() - intersect_rect.area()
 
-    return intersect_rect.area() / union_rect.area()
+    return intersect_rect.area() / union_area#union_rect.area()
 
 
 def get_label_grid(
@@ -32,7 +33,7 @@ def get_label_grid(
     
     sizes, ratios, rows, cols, points = anchor_grid.shape
 
-    grid = np.ndarray((sizes, ratios, rows, cols))
+    grid = np.zeros((sizes, ratios, rows, cols), dtype=np.int64)
 
     for size in range(sizes):
         for ratio in range(ratios):
@@ -40,9 +41,7 @@ def get_label_grid(
                 for col in range(cols):
                     for gt in gts:
                         rect = anchor_grid[size][ratio][row][col]
-                        if iou(gt, AnnotationRect.fromarray(rect)) >= min_iou:
-                            grid[size][ratio][row][col] = 1
-                        else:
+                        if iou(AnnotationRect.fromarray(rect), gt) >= min_iou:
                             grid[size][ratio][row][col] = 1
     
     return grid
@@ -51,38 +50,51 @@ def get_label_grid(
 
 def draw_matching_rects(img, anch_grid, label_grid):
     sizes, ratios, rows, cols, points = anch_grid.shape
+    img_draw = ImageDraw.Draw(img)
     for size in range(sizes):
         for ratio in range(ratios):
             for row in range(rows):
                 for col in range(cols):
                     if label_grid[size][ratio][row][col] == 1:
-                        img_draw = ImageDraw.Draw(img)
                         rect = anch_grid[size][ratio][row][col]
-                        annotation.draw_annotation(img_draw, rect)
+                        annotation.draw_annotation(img_draw, rect, "green", 2)
 
 
 
 def exercise_4_2_c():
-    path = "/home/tamz/Documents/programming/mmp_sose25_varadita/dataset/train/"
+    path = f"{Path.cwd()}/dataset/train/"
     img_path = path + "00114403.jpg"
-    gt_path = path + "00114403.gt_data.txt"
     img = Image.open(img_path)
-    gts = annotation.read_groundtruth_file(gt_path)
+
+    scale_factor = 8.0
+    width, height = img.size
+
+    num_cols = int(width / scale_factor)
+    num_rows = int(height / scale_factor)
+
+    anchor_widths = [128.0, 256.0, 512.0]
+    aspect_ratios = [0.25, 0.5, 1.0, 2.0]
 
     agrid = anchor_grid.get_anchor_grid(
-        3,
-        5, 
-        8.0,
-        [32, 64, 96, 128, 196],
-        [0.25, 0.5, 0.75, 1.0, 2.0]
+        num_rows,
+        num_cols, 
+        scale_factor,
+        anchor_widths,
+        aspect_ratios
     )
+
+    gt_path = path + "00114403.gt_data.txt"
+    gts = annotation.read_groundtruth_file(gt_path)
+
+    img_draw = ImageDraw.Draw(img)
+
+    #for ann in gts:
+    #    annotation.draw_annotation(img_draw, ann.__array__())
 
     label_grid = get_label_grid(anchor_grid=agrid, gts=gts, min_iou=0.7)
     draw_matching_rects(img, agrid, label_grid)
     img.show()
+    img.save("exercise_4_2_c.png")
     
 if __name__ == "__main__":
     exercise_4_2_c()
-
-
-

@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torchvision
 import os
+from torchvision.transforms.functional import to_pil_image
 from torch.utils.data import DataLoader
 from PIL import Image, ImageDraw
 from pathlib import Path
@@ -41,6 +42,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
             gt_path = i.replace(".jpg", ".gt_data.txt")
             if os.path.exists(gt_path):
                 dictionary[i] = annotation.read_groundtruth_file(gt_path)
+            else:
+                dictionary[i] = []
         return dictionary
 
 
@@ -50,13 +53,19 @@ class MMP_Dataset(torch.utils.data.Dataset):
         """
         img_path = self.image_paths[idx]
         img_id = img_path.removeprefix(self.path_to_data + "/").removesuffix(".jpg")
-        #img_id = img_id.removesuffix(".jpg")
         img = Image.open(img_path)
         width, height = img.size
         size_delta = abs(height - width)
         pad_right = size_delta if height > width else 0
         pad_bottom = size_delta if height < width else 0
         padding = (0, 0, pad_right, pad_bottom)
+
+        scale_x = self.image_size / width
+        scale_y = self.image_size / height
+
+        annotations_scaled = list(
+            map(lambda a: a.resized(scale_x, scale_y), self.annotation_dict[img_path])
+        )
         
         tfm = torchvision.transforms.Compose([
             torchvision.transforms.Pad(padding, 0, "constant"),
@@ -64,9 +73,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-
         img_tensor = tfm(img)
-        l_grid = torch.Tensor() if self.is_test else label_grid.get_label_grid(self.anchor_grid, self.annotation_dict[img_path], self.min_iou)
+        l_grid = torch.Tensor() if len(annotations_scaled) == 0 else label_grid.get_label_grid(self.anchor_grid, annotations_scaled, self.min_iou)
 
         return (img_tensor, l_grid, img_id)
 
@@ -99,20 +107,53 @@ def calculate_max_coverage(loader: DataLoader, min_iou: float) -> float:
     @param min_iou: Minimum IoU overlap that is required to count a ground truth box as covered.
     @return: Ratio of how mamy ground truth boxes are covered by a label grid box. Must be a value between 0 and 1.
     """
-    raise NotImplementedError()
+    loader.dataset.min_iou = min_iou
+
+    gt_count = 0
+    covered_count = 0
+
+    for i in range(len(loader.dataset)):
+        tup = loader.dataset[i] # (img_tensor, lgrid, img_id)
+        lgrid = tup[1]
+        img_id = tup[2]
+
+        img_path = loader.dataset.path_to_data + f"/{img_id}.jpg"
+
+        gt_count += len(loader.dataset.annotation_dict[img_path])
+        covered_count += np.count_nonzero(lgrid == 1)
+    
+    return covered_count / gt_count
+
 
 if __name__ == "__main__":
     train_data_dir = f"{Path.cwd()}/dataset/train"
 
+    img_size = 224
+    batch_size = 8
+    num_workers = 0
+
+    scale_factor = 8.0
+
+    num_rows = int(img_size / scale_factor)
+    num_cols = int(img_size / scale_factor)
+
+    anchor_widths = [16, 32, 64, 128]
+    aspect_ratios = [0.25, 0.5, 0.75, 1.0]
+
+
     agrid = anchor_grid.get_anchor_grid(
-        3,
-        4, 
-        8.0,
-        [32, 64, 96, 128, 196],
-        [0.25, 0.5, 0.75, 1.0]
+        num_rows,
+        num_cols, 
+        scale_factor,
+        anchor_widths,
+        aspect_ratios
     )
 
-    dataloader = get_dataloader(train_data_dir, 224, 32, 0, agrid, False)
+    dataloader = get_dataloader(train_data_dir, img_size, batch_size, num_workers, agrid, is_test=True)
+
+    max_coverage = 0.0 # calculate_max_coverage(dataloader, 0.5)
+    print("<=== Max Coverage ===>")
+    print(max_coverage)
 
     i = 0
 
@@ -121,18 +162,19 @@ if __name__ == "__main__":
         if i == 12:
             break
         images, labels, ids = batch
-        img06 = images[5]
-        gts = labels[5]
+        img06_tensor = images[5]
+        lgrid = labels[5]
         id = ids[5]
 
-        img_path = train_data_dir + f"/{id}.jpg"
-        img = Image.open(img_path)
-        gt_path = train_data_dir + f"/{id}.gt_data.txt"
-        gts = annotation.read_groundtruth_file(gt_path)
+        # Denormalize image tensor
+        mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+        denorm_tensor = img06_tensor * std + mean
 
-        lgrid = label_grid.get_label_grid(anchor_grid=agrid, gts=gts, min_iou=0.7)
+        img = to_pil_image(denorm_tensor)
 
-        label_grid.draw_matching_rects(img, agrid, lgrid)
+        if lgrid.numel() != 0:
+            label_grid.draw_matching_rects(img, agrid, lgrid)
         img.show()
 
         i += 1
