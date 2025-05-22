@@ -33,7 +33,7 @@ def get_label_grid(
     
     sizes, ratios, rows, cols, points = anchor_grid.shape
 
-    grid = np.zeros((sizes, ratios, rows, cols))
+    grid = np.zeros((sizes, ratios, rows, cols), dtype=bool)
 
     for size in range(sizes):
         for ratio in range(ratios):
@@ -42,7 +42,7 @@ def get_label_grid(
                     for gt in gts:
                         rect = anchor_grid[size][ratio][row][col]
                         if iou(AnnotationRect.fromarray(rect), gt) >= min_iou:
-                            grid[size][ratio][row][col] = 1
+                            grid[size][ratio][row][col] = True
     
     return grid
 
@@ -55,7 +55,7 @@ def draw_matching_rects(img, anch_grid, label_grid):
         for ratio in range(ratios):
             for row in range(rows):
                 for col in range(cols):
-                    if label_grid[size][ratio][row][col] == 1:
+                    if label_grid[size][ratio][row][col]:
                         rect = anch_grid[size][ratio][row][col]
                         annotation.draw_annotation(img_draw, rect, "green", 2)
 
