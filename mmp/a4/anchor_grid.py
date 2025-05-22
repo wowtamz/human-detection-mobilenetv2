@@ -9,7 +9,7 @@ def get_anchor_grid(
     aspect_ratios: Sequence[float],
 ) -> np.ndarray:
     
-    grid = np.zeros((len(anchor_widths), len(aspect_ratios), num_rows, num_cols, 4), dtype=np.float32)
+    grid = np.zeros((len(anchor_widths), len(aspect_ratios), num_rows, num_cols, 4))
 
     for row in range(num_rows):
         for col in range(num_cols):
