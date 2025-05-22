@@ -18,12 +18,12 @@ class AnnotationRect:
         width = abs(self.x1 - self.x2)
         return height * width
     
-    def resized(self, scale_x, scale_y):
+    def scaled(self, scale, pad_x = 0, pad_y = 0):
         return AnnotationRect(
-            self.x1 * scale_x,
-            self.y1 * scale_y,
-            self.x2 * scale_x,
-            self.y2 * scale_y
+            self.x1 * scale + pad_x,
+            self.y1 * scale + pad_y,
+            self.x2 * scale + pad_x,
+            self.y2 * scale + pad_y
         )
 
     def __array__(self) -> np.ndarray:

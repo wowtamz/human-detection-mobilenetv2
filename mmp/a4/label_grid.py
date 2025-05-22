@@ -59,8 +59,6 @@ def draw_matching_rects(img, anch_grid, label_grid):
                         rect = anch_grid[size][ratio][row][col]
                         annotation.draw_annotation(img_draw, rect, "green", 2)
 
-
-
 def exercise_4_2_c():
     path = f"{Path.cwd()}/dataset/train/"
     img_path = path + "00114403.jpg"
@@ -72,8 +70,8 @@ def exercise_4_2_c():
     num_cols = int(width / scale_factor)
     num_rows = int(height / scale_factor)
 
-    anchor_widths = [128.0, 256.0, 512.0]
-    aspect_ratios = [0.25, 0.5, 1.0, 2.0]
+    anchor_widths = [32.0, 64.0, 128.0, 256.0]
+    aspect_ratios = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2]
 
     agrid = anchor_grid.get_anchor_grid(
         num_rows,
@@ -86,15 +84,10 @@ def exercise_4_2_c():
     gt_path = path + "00114403.gt_data.txt"
     gts = annotation.read_groundtruth_file(gt_path)
 
-    img_draw = ImageDraw.Draw(img)
-
-    #for ann in gts:
-    #    annotation.draw_annotation(img_draw, ann.__array__())
-
     label_grid = get_label_grid(anchor_grid=agrid, gts=gts, min_iou=0.7)
     draw_matching_rects(img, agrid, label_grid)
     img.show()
-    img.save("exercise_4_2_c.png")
+    img.save("mmp/a4/exercise_4_2_c.png")
     
 if __name__ == "__main__":
     exercise_4_2_c()

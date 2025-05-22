@@ -26,7 +26,7 @@ class MMP_Dataset(torch.utils.data.Dataset):
         @param min_iou: The minimum IoU that is required for an overlap for the label grid.
         @param is_test: Whether this is the test set (True) or the validation/training set (False)
         """
-        self.path_to_data = path_to_data
+        self.path_to_data = path_to_data if path_to_data.endswith("/") else path_to_data + "/"
         self.image_size = image_size
         self.anchor_grid = anchor_grid
         self.min_iou = min_iou
@@ -39,20 +39,27 @@ class MMP_Dataset(torch.utils.data.Dataset):
     def get_annotation_dict(self) -> dict:
         dictionary = dict()
         for i in self.image_paths:
+            key = i.removeprefix(self.path_to_data).removesuffix(".jpg")
             gt_path = i.replace(".jpg", ".gt_data.txt")
             if os.path.exists(gt_path):
-                dictionary[i] = annotation.read_groundtruth_file(gt_path)
+
+                dictionary[key] = annotation.read_groundtruth_file(gt_path)
             else:
-                dictionary[i] = []
+                dictionary[key] = []
         return dictionary
 
+    def get_image_id(self, image_path):
+        return image_path.removeprefix(self.path_to_data).removesuffix(".jpg")
+    
+    def get_image_path(self, image_id):
+        return self.path_to_data + f"{image_id}.jpg"
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         """
         @return: 3-tuple of image tensor, label grid, and image (file-)number
         """
         img_path = self.image_paths[idx]
-        img_id = img_path.removeprefix(self.path_to_data + "/").removesuffix(".jpg")
+        img_id = self.get_image_id(img_path)
         img = Image.open(img_path)
         width, height = img.size
         size_delta = abs(height - width)
@@ -60,11 +67,10 @@ class MMP_Dataset(torch.utils.data.Dataset):
         pad_bottom = size_delta if height < width else 0
         padding = (0, 0, pad_right, pad_bottom)
 
-        scale_x = self.image_size / width
-        scale_y = self.image_size / height
+        scale = self.image_size / max(width, height)
 
         annotations_scaled = list(
-            map(lambda a: a.resized(scale_x, scale_y), self.annotation_dict[img_path])
+            map(lambda a: a.scaled(scale), self.annotation_dict[img_id])
         )
         
         tfm = torchvision.transforms.Compose([
@@ -89,8 +95,10 @@ def get_dataloader(
     anchor_grid: np.ndarray,
     is_test: bool,
 ) -> DataLoader:
+
+    min_iou = 0.7
     
-    dataset = MMP_Dataset(path_to_data, image_size, anchor_grid, 0.7, is_test=is_test)
+    dataset = MMP_Dataset(path_to_data, image_size, anchor_grid, min_iou, is_test=is_test)
 
     dataloader = DataLoader(dataset=dataset,
                             batch_size=batch_size,
@@ -117,13 +125,23 @@ def calculate_max_coverage(loader: DataLoader, min_iou: float) -> float:
         lgrid = tup[1]
         img_id = tup[2]
 
-        img_path = loader.dataset.path_to_data + f"/{img_id}.jpg"
-
-        gt_count += len(loader.dataset.annotation_dict[img_path])
+        gt_count += len(loader.dataset.annotation_dict[img_id])
         covered_count += np.count_nonzero(lgrid == 1)
     
     return covered_count / gt_count
 
+# For comparing scaled image and its gts to the original image
+def draw_original(img_path):
+
+    img = Image.open(img_path)
+    draw = ImageDraw.Draw(img)
+    gt_path = img_path.replace(".jpg", ".gt_data.txt")
+    gts = annotation.read_groundtruth_file(gt_path)
+
+    for gt in gts:
+        annotation.draw_annotation(draw, gt.__array__())
+    
+    img.show()
 
 if __name__ == "__main__":
     train_data_dir = f"{Path.cwd()}/dataset/train"
@@ -132,14 +150,13 @@ if __name__ == "__main__":
     batch_size = 8
     num_workers = 0
 
-    scale_factor = 8.0
+    scale_factor = 4.0
 
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
 
-    anchor_widths = [16, 32, 64, 128]
-    aspect_ratios = [0.25, 0.5, 0.75, 1.0]
-
+    anchor_widths = [2, 4, 8, 16, 32, 64, 128, 256]
+    aspect_ratios = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
 
     agrid = anchor_grid.get_anchor_grid(
         num_rows,
@@ -150,21 +167,24 @@ if __name__ == "__main__":
     )
 
     dataloader = get_dataloader(train_data_dir, img_size, batch_size, num_workers, agrid, is_test=True)
+    dataloader.dataset.min_iou = 0.6
+    #max_coverage = calculate_max_coverage(dataloader, 0.5)
+    #print("<=== Max Coverage ===>")
+    #print(max_coverage)
 
-    max_coverage = 0.0 # calculate_max_coverage(dataloader, 0.5)
-    print("<=== Max Coverage ===>")
-    print(max_coverage)
-
-    i = 0
+    batch_count = 12
+    current_batch = 0
 
     for batch in dataloader:
 
-        if i == 12:
+        if current_batch == batch_count:
             break
+        
+        n = 5
         images, labels, ids = batch
-        img06_tensor = images[5]
-        lgrid = labels[5]
-        id = ids[5]
+        img06_tensor = images[n]
+        lgrid = labels[n]
+        img_id = ids[n]
 
         # Denormalize image tensor
         mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
@@ -176,5 +196,6 @@ if __name__ == "__main__":
         if lgrid.numel() != 0:
             label_grid.draw_matching_rects(img, agrid, lgrid)
         img.show()
+        img.save(f"mmp/a4/img06-batch{current_batch}.jpg")
 
-        i += 1
+        current_batch += 1
