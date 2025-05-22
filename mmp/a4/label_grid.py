@@ -33,7 +33,7 @@ def get_label_grid(
     
     sizes, ratios, rows, cols, points = anchor_grid.shape
 
-    grid = np.zeros((sizes, ratios, rows, cols), dtype=np.int64)
+    grid = np.zeros((sizes, ratios, rows, cols))
 
     for size in range(sizes):
         for ratio in range(ratios):
