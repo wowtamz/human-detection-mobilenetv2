@@ -8,15 +8,13 @@ class MmpNet(torch.nn.Module):
         self.num_widths = num_widths
         self.num_aspect_ratios = num_aspect_ratios
         self.model = torchvision.models.mobilenet_v2(weights = "DEFAULT").features
-        self.head = None
-    
-    def set_classifier_head(self, rows, cols):
-        self.rows = rows
-        self.cols = cols
+
+        self.rows = 56
+        self.cols = 56
         self.head = nn.Sequential(
             nn.Conv2d(1280, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Upsample(size=(rows, cols), mode="bilinear", align_corners=False),
+            nn.Upsample(size=(self.rows, self.cols), mode="bilinear", align_corners=False),
             nn.Conv2d(
                 128,
                 self.num_widths * self.num_aspect_ratios,
