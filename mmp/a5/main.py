@@ -112,8 +112,11 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
 
     criterion = a2.get_criterion_optimizer(model)[0]
 
+    progress = 0
+
     with torch.no_grad():
         for i, data in enumerate(loader):
+            print(f"validating epoch {val_epoch} | iter {progress}")
             images, labels, ids = data
             images = images.to(device)
             labels = labels.to(device)
@@ -123,13 +126,15 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
             loss = criterion(prediction, labels)
             total += images.shape[0]
             total_loss += loss.item() * images.shape[0]
-            predicted_label = prediction.argmax(dim=-1)
-            correct += torch.sum(predicted_label == labels)
+            #predicted_label = prediction.argmax(dim=-1)
+            #correct += torch.sum(predicted_label == labels)
+            correct += torch.sum(prediction == labels)
+            progress += 1
 
     loss = total_loss / total
     accuracy = correct / total
 
-    print(f"Validation epoch {val_epoch}, Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}")
+    print(f"//===Statistics for epoch {val_epoch}===//\n Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}\n//======================================//")
     if tensorboard_writer:
         tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
         tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
@@ -138,7 +143,8 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
 
-    data_path = "dataset/train"
+    train_data_path = "dataset/train"
+    val_data_path = "dataset/val"
     img_size = 224
     batch_size = 8
     num_workers = 0
@@ -160,18 +166,22 @@ def main():
     )
 
     model = MmpNet(len(anchor_widths) ,len(aspect_ratios))
-    dataloader = dataset.get_dataloader(data_path, img_size, batch_size, num_workers, agrid, False)
-
+    train_dataloader = dataset.get_dataloader(train_data_path, img_size, batch_size, num_workers, agrid, False)
+    
+    val_dataloader = dataset.get_dataloader(val_data_path, img_size, 1, num_workers, agrid, True)
     loss_func, optimizer = a2.get_criterion_optimizer(model)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     tensorboard_writer = get_tensorboard_writer("MmpNet-A5")
 
-    epochs = 10
-    for i in range(epochs):
-        curr_epoch = i
-        train_epoch(model, dataloader, loss_func, optimizer, device)
-        val_epoch(i, model, dataloader, device, tensorboard_writer)
+    epochs = 3
+    try:
+        for i in range(epochs):
+            curr_epoch = i
+            train_epoch(model, train_dataloader, loss_func, optimizer, device)
+            val_epoch(i, model, val_dataloader, device, tensorboard_writer)
+    finally:
+        tensorboard_writer.close()
 
 if __name__ == "__main__":
     main()
