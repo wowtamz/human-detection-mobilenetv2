@@ -1,6 +1,8 @@
 import torch
 import torch.optim as optim
 import torchvision
+from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
 from .model import MmpNet
 from ..a4 import dataset
@@ -23,6 +25,11 @@ def step(
     @return: The loss for the specified batch. Return a float and not a PyTorch tensor
     """
     raise NotImplementedError()
+
+def get_tensorboard_writer(model_name):
+    current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    tensorboard_writer = SummaryWriter(log_dir=f"tensorboard_logs/{model_name}_{current_time}")
+    return tensorboard_writer
 
 
 def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Tensor:
@@ -55,6 +62,37 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
 
+def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer) -> float:
+
+    model = model.to(device)
+    model.eval()
+    total = 0
+    correct = 0
+    total_loss = 0
+
+    criterion = a2.get_criterion_optimizer(model)[0]
+
+    with torch.no_grad():
+        for i, data in enumerate(loader):
+            images, labels, ids = data
+            images = images.to(device)
+            labels = labels.to(device)
+
+            prediction = model(images)
+            loss = criterion(prediction, labels)
+            total += images.shape[0]
+            total_loss += loss.item() * images.shape[0]
+            predicted_label = prediction.argmax(dim=-1)
+            correct += torch.sum(predicted_label == labels)
+
+    loss = total_loss / total
+    accuracy = correct / total
+
+    print(f"Validation epoch {val_epoch}, Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}")
+    tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
+    tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
+    return accuracy
+
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
 
@@ -85,11 +123,13 @@ def main():
     loss_func, optimizer = a2.get_criterion_optimizer(model)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    tensorboard_writer = get_tensorboard_writer("MmpNet-A5")
 
     epochs = 10
     for i in range(epochs):
         curr_epoch = i
         train_epoch(model, dataloader, loss_func, optimizer, device)
+        val_epoch(i, model, dataloader, device, tensorboard_writer)
 
 if __name__ == "__main__":
     main()
