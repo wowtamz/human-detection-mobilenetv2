@@ -1,14 +1,19 @@
 import torch
 import torch.optim as optim
-import torchvision
+import numpy as np
 from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
 from .model import MmpNet
 from ..a4 import dataset
 from ..a4 import anchor_grid
-from . import model as md
 from ..a2 import main as a2
+
+# Only import tensorboard if it is installed
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    SummaryWriter = None
+
 
 curr_epoch = 0
 curr_batch = 0
@@ -24,13 +29,29 @@ def step(
 
     @return: The loss for the specified batch. Return a float and not a PyTorch tensor
     """
-    raise NotImplementedError()
+    optimizer.zero_grad()
+
+    prediction = model(img_batch)
+    loss = criterion(prediction, lbl_batch)
+
+    # Begin - Exercise 5.3
+    mask = get_random_sampling_mask(lbl_batch, 0.1)
+    filtered_loss = loss * mask
+    loss = filtered_loss.sum() / mask.sum()
+    # End Ex. 5.3
+
+    loss.backward()
+    optimizer.step()
+
+    return loss
 
 def get_tensorboard_writer(model_name):
-    current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    tensorboard_writer = SummaryWriter(log_dir=f"tensorboard_logs/{model_name}_{current_time}")
-    return tensorboard_writer
-
+    if SummaryWriter is not None:
+        current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        tensorboard_writer = SummaryWriter(log_dir=f"tensorboard_logs/{model_name}_{current_time}")
+        return tensorboard_writer
+    else:
+        print("Tensorboard SummaryWriter is not available!")
 
 def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Tensor:
     """
@@ -41,7 +62,26 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
     @return: A tensor with the same shape as labels
     """
     assert labels.min() >= 0 and labels.max() <= 1  # remove this line if you want
-    raise NotImplementedError()
+    
+    flat_labels = labels.flatten()
+    
+    pos_mask = flat_labels.bool()
+    
+    neg_mask = ~pos_mask
+    neg_indices = torch.nonzero(neg_mask, as_tuple=False).squeeze()
+
+    num_pos = pos_mask.sum().item()
+    num_neg_to_sample = int(neg_ratio * num_pos)
+
+    num_neg_to_sample = min(num_neg_to_sample, neg_indices.numel())
+
+    selected_neg_indices = neg_indices[torch.randperm(len(neg_indices))[:num_neg_to_sample]]
+
+    mask = torch.zeros_like(flat_labels, dtype=torch.bool)
+    mask[pos_mask] = True
+    mask[selected_neg_indices] = True
+
+    return mask.view_as(labels)
 
 def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device):
     
@@ -57,12 +97,12 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device)
 
         images = images.to(device)
         labels = labels.to(device)
-
-        loss = md.step(model, criterion, optimizer, images, labels.float())
+        
+        loss = step(model, criterion, optimizer, images, labels.float())
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
 
-def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer) -> float:
+def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer = None) -> float:
 
     model = model.to(device)
     model.eval()
@@ -77,6 +117,7 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
             images, labels, ids = data
             images = images.to(device)
             labels = labels.to(device)
+            labels = labels.float()
 
             prediction = model(images)
             loss = criterion(prediction, labels)
@@ -89,8 +130,9 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
     accuracy = correct / total
 
     print(f"Validation epoch {val_epoch}, Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}")
-    tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
-    tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
+    if tensorboard_writer:
+        tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
+        tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
     return accuracy
 
 def main():

@@ -30,15 +30,3 @@ class MmpNet(torch.nn.Module):
         batch_size = x.shape[0]
         out = out.reshape(batch_size, self.num_widths, self.num_aspect_ratios, self.rows, self.cols)
         return out
-
-def step(model, criterion, optimizer, img_batch, lbl_batch) -> float:
-
-    optimizer.zero_grad()
-
-    prediction = model(img_batch)
-    loss = criterion(prediction, lbl_batch)
-    loss.backward()
-    optimizer.step()
-
-    return loss
-
