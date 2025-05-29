@@ -7,8 +7,8 @@ class MmpNet(torch.nn.Module):
         super().__init__()
         self.num_widths = num_widths
         self.num_aspect_ratios = num_aspect_ratios
-        
         self.model = torchvision.models.mobilenet_v2(weights = "DEFAULT").features
+        self.head = None
     
     def set_classifier_head(self, rows, cols):
         self.rows = rows
