@@ -40,7 +40,7 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device)
     
     global curr_batch
     global curr_epoch
-    
+
     model = model.to(device)
     model.train()
 
@@ -80,7 +80,6 @@ def main():
     )
 
     model = MmpNet(len(anchor_widths) ,len(aspect_ratios))
-    model.set_classifier_head(num_rows, num_cols)
     dataloader = dataset.get_dataloader(data_path, img_size, batch_size, num_workers, agrid, False)
 
     loss_func, optimizer = a2.get_criterion_optimizer(model)
