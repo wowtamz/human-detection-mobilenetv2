@@ -14,6 +14,7 @@ try:
 except ImportError:
     SummaryWriter = None
 
+use_negative_mining = False
 
 curr_epoch = 0
 curr_batch = 0
@@ -35,9 +36,10 @@ def step(
     loss = criterion(prediction, lbl_batch)
 
     # Begin - Exercise 5.3
-    mask = get_random_sampling_mask(lbl_batch, 0.1)
-    filtered_loss = loss * mask
-    loss = filtered_loss.sum() / mask.sum()
+    if use_negative_mining:
+        mask = get_random_sampling_mask(lbl_batch, 0.1)
+        filtered_loss = loss * mask
+        loss = filtered_loss.sum() / mask.sum()
     # End Ex. 5.3
 
     loss.backward()
@@ -126,8 +128,6 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
             loss = criterion(prediction, labels)
             total += images.shape[0]
             total_loss += loss.item() * images.shape[0]
-            #predicted_label = prediction.argmax(dim=-1)
-            #correct += torch.sum(predicted_label == labels)
             correct += torch.sum(prediction == labels)
             progress += 1
 
@@ -137,7 +137,7 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
     print(f"//===Statistics for epoch {val_epoch}===//\n Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}\n//======================================//")
     if tensorboard_writer:
         tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
-        tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
+        #tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
     return accuracy
 
 def main():
@@ -172,9 +172,9 @@ def main():
     loss_func, optimizer = a2.get_criterion_optimizer(model)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    tensorboard_writer = get_tensorboard_writer("MmpNet-A5")
+    tensorboard_writer = get_tensorboard_writer("a5_neg_mining" if use_negative_mining else "a5")
 
-    epochs = 3
+    epochs = 10
     try:
         for i in range(epochs):
             curr_epoch = i
