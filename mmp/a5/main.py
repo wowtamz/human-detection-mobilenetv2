@@ -146,8 +146,8 @@ def main():
     train_data_path = "dataset/train"
     val_data_path = "dataset/val"
     img_size = 224
-    batch_size = 8
-    num_workers = 0
+    batch_size = 64
+    num_workers = 4
 
     scale_factor = 4.0
 
