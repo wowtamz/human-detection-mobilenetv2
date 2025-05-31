@@ -17,7 +17,6 @@ except ImportError:
 use_negative_mining = False
 
 curr_epoch = 0
-curr_batch = 0
 
 def step(
     model: MmpNet,
@@ -87,8 +86,8 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
 
 def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device):
     
-    global curr_batch
     global curr_epoch
+    curr_batch = 0
 
     model = model.to(device)
     model.train()
@@ -104,7 +103,7 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
 
-def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer = None) -> float:
+def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer = None) -> float:
 
     model = model.to(device)
     model.eval()
@@ -118,7 +117,7 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
 
     with torch.no_grad():
         for i, data in enumerate(loader):
-            print(f"validating epoch {val_epoch} | iter {progress}")
+            print(f"validating epoch {eval_epoch} | iter {progress}")
             images, labels, ids = data
             images = images.to(device)
             labels = labels.to(device)
@@ -134,15 +133,17 @@ def val_epoch(val_epoch, model, loader: dataset.DataLoader, device: torch.device
     loss = total_loss / total
     accuracy = correct / total
 
-    print(f"//===Statistics for epoch {val_epoch}===//\n Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}\n//======================================//")
+    print(f"//===Statistics for epoch {eval_epoch}===//\n Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}\n//======================================//")
     if tensorboard_writer:
-        tensorboard_writer.add_scalar("Loss/Validation", loss, val_epoch)
-        #tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, val_epoch)
+        tensorboard_writer.add_scalar("Loss/Validation", loss, eval_epoch)
+        tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, eval_epoch)
     return accuracy
 
-def main():
-    """Put your training code for exercises 5.2 and 5.3 here"""
-
+def train_and_evaluate(neg_mining, epochs=15, tag=""):
+    
+    global curr_epoch
+    global use_negative_mining
+    use_negative_mining = neg_mining
     train_data_path = "dataset/train"
     val_data_path = "dataset/val"
     img_size = 224
@@ -154,8 +155,8 @@ def main():
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
 
-    anchor_widths = [2, 4, 8, 16, 32, 64, 128, 256]
-    aspect_ratios = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
+    anchor_widths = [8, 16, 32, 64, 128] # [2, 4, 8, 16, 32, 64, 128, 256]
+    aspect_ratios = [0.5, 1.0, 2.0] #[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
 
     agrid = anchor_grid.get_anchor_grid(
         num_rows,
@@ -166,22 +167,31 @@ def main():
     )
 
     model = MmpNet(len(anchor_widths) ,len(aspect_ratios))
-    train_dataloader = dataset.get_dataloader(train_data_path, img_size, batch_size, num_workers, agrid, False)
-    
-    val_dataloader = dataset.get_dataloader(val_data_path, img_size, 1, num_workers, agrid, True)
-    loss_func, optimizer = a2.get_criterion_optimizer(model)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    tensorboard_writer = get_tensorboard_writer("a5_neg_mining" if use_negative_mining else "a5")
 
-    epochs = 10
+    train_dataloader = dataset.get_dataloader(train_data_path, img_size, batch_size, num_workers, agrid, False)
+    
+    eval_dataloader = dataset.get_dataloader(train_data_path, img_size, 1, num_workers, agrid, True)
+    loss_func, optimizer = a2.get_criterion_optimizer(model)
+
+    tensorboard_writer =  get_tensorboard_writer("a5{tag}_neg_mining" if neg_mining else "a5{tag}")
+
     try:
         for i in range(epochs):
             curr_epoch = i
             train_epoch(model, train_dataloader, loss_func, optimizer, device)
-            val_epoch(i, model, val_dataloader, device, tensorboard_writer)
+            eval_epoch(i, model, eval_dataloader, device, tensorboard_writer)
     finally:
         tensorboard_writer.close()
+
+def main():
+    """Put your training code for exercises 5.2 and 5.3 here"""
+    
+    tag_name="_reduced_widths_ratios"
+    train_and_evaluate(tag=tag_name, neg_mining=False, epochs=15)
+    train_and_evaluate(tag=tag_name, neg_mining=True, epochs=15)
+    
 
 if __name__ == "__main__":
     main()
