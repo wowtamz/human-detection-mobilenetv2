@@ -175,7 +175,7 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
     eval_dataloader = dataset.get_dataloader(train_data_path, img_size, 1, num_workers, agrid, True)
     loss_func, optimizer = a2.get_criterion_optimizer(model)
 
-    tensorboard_writer =  get_tensorboard_writer("a5{tag}_neg_mining" if neg_mining else "a5{tag}")
+    tensorboard_writer =  get_tensorboard_writer(f"a5{tag}_neg_mining" if neg_mining else f"a5{tag}")
 
     try:
         for i in range(epochs):
@@ -187,7 +187,7 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
 
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
-    
+
     tag_name="_reduced_widths_ratios"
     train_and_evaluate(tag=tag_name, neg_mining=False, epochs=15)
     train_and_evaluate(tag=tag_name, neg_mining=True, epochs=15)
