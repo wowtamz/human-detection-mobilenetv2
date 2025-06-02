@@ -9,8 +9,8 @@ class MmpNet(torch.nn.Module):
         self.num_aspect_ratios = num_aspect_ratios
         self.model = torchvision.models.mobilenet_v2(weights = "DEFAULT").features
 
-        self.rows = 56
-        self.cols = 56
+        self.rows = 37 #56
+        self.cols = 37 #56
         self.head = nn.Sequential(
             nn.Conv2d(1280, 128, kernel_size=3, padding=1),
             nn.ReLU(),

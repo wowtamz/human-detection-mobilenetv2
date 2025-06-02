@@ -135,8 +135,8 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
 
     print(f"//===Statistics for epoch {eval_epoch}===//\n Loss: {loss:.4f}, Accuracy: {accuracy * 100:.4f}\n//======================================//")
     if tensorboard_writer:
-        tensorboard_writer.add_scalar("Loss/Validation", loss, eval_epoch)
-        tensorboard_writer.add_scalar("Accuracy/Validation", accuracy, eval_epoch)
+        tensorboard_writer.add_scalar("Loss/Epoch Training", loss, eval_epoch)
+        tensorboard_writer.add_scalar("Accuracy/Epoch Training", accuracy, eval_epoch)
     return accuracy
 
 def train_and_evaluate(neg_mining, epochs=15, tag=""):
@@ -150,13 +150,13 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
     batch_size = 64
     num_workers = 4
 
-    scale_factor = 4.0
+    scale_factor = 6.0
 
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
 
-    anchor_widths = [8, 16, 32, 64, 128] # [2, 4, 8, 16, 32, 64, 128, 256]
-    aspect_ratios = [0.5, 1.0, 2.0] #[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
+    anchor_widths = [4, 8, 16, 32, 64, 128] # [2, 4, 8, 16, 32, 64, 128, 256]
+    aspect_ratios = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0] #[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
 
     agrid = anchor_grid.get_anchor_grid(
         num_rows,
@@ -187,11 +187,12 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
 
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
-
-    tag_name="_reduced_widths_ratios"
-    train_and_evaluate(tag=tag_name, neg_mining=False, epochs=15)
-    train_and_evaluate(tag=tag_name, neg_mining=True, epochs=15)
     
+    _epochs = 100
+    tag_name="_scale6"
+    train_and_evaluate(tag=tag_name, neg_mining=False, epochs=_epochs)
+    train_and_evaluate(tag=tag_name, neg_mining=True, epochs=_epochs)
+
 
 if __name__ == "__main__":
     main()
