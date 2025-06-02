@@ -139,7 +139,7 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
         tensorboard_writer.add_scalar("Accuracy/Epoch Training", accuracy, eval_epoch)
     return accuracy
 
-def train_and_evaluate(neg_mining, epochs=15, tag=""):
+def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.0, epochs=15, tag=""):
     
     global curr_epoch
     global use_negative_mining
@@ -150,13 +150,13 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
     batch_size = 64
     num_workers = 4
 
-    scale_factor = 6.0
+    #scale_factor = 8.0 # Default 8.0
 
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
 
-    anchor_widths = [4, 8, 16, 32, 64, 128] # [2, 4, 8, 16, 32, 64, 128, 256]
-    aspect_ratios = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0] #[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
+    #anchor_widths = [4, 8, 16, 32, 64, 128] # [2, 4, 8, 16, 32, 64, 128, 256]
+    #aspect_ratios = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0] #[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2, 3]
 
     agrid = anchor_grid.get_anchor_grid(
         num_rows,
@@ -166,7 +166,7 @@ def train_and_evaluate(neg_mining, epochs=15, tag=""):
         aspect_ratios
     )
 
-    model = MmpNet(len(anchor_widths) ,len(aspect_ratios))
+    model = MmpNet(len(anchor_widths) ,len(aspect_ratios), num_rows, num_cols)
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -189,9 +189,17 @@ def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
     
     _epochs = 100
-    tag_name="_scale6"
-    train_and_evaluate(tag=tag_name, neg_mining=False, epochs=_epochs)
-    train_and_evaluate(tag=tag_name, neg_mining=True, epochs=_epochs)
+    tag_name="_testing"
+    train_and_evaluate(
+        scale_factor=8.0,
+        anchor_widths=[4, 8, 16, 32, 64, 128],
+        aspect_ratios=[0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+        tag=tag_name, neg_mining=False, epochs=_epochs)
+    
+    train_and_evaluate(
+        anchor_widths=[4, 8, 16, 32, 64, 128],
+        aspect_ratios=[0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+        tag=tag_name, neg_mining=True, epochs=_epochs)
 
 
 if __name__ == "__main__":
