@@ -1,12 +1,10 @@
 import torch
 import torch.optim as optim
-import numpy as np
+import torch.nn as nn
 from datetime import datetime
-from PIL import Image
 from .model import MmpNet
 from ..a4 import dataset
 from ..a4 import anchor_grid
-from ..a2 import main as a2
 
 # Only import tensorboard if it is installed
 try:
@@ -84,6 +82,11 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
 
     return mask.view_as(labels)
 
+def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002):
+    error_func = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
+    return (error_func, optimizer)
+
 def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device):
     
     global curr_epoch
@@ -111,7 +114,7 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
     correct = 0
     total_loss = 0
 
-    criterion = a2.get_criterion_optimizer(model)[0]
+    criterion = get_criterion_optimizer(model)[0]
 
     progress = 0
 
@@ -139,7 +142,7 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
         tensorboard_writer.add_scalar("Accuracy/Epoch Training", accuracy, eval_epoch)
     return accuracy
 
-def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.0, epochs=15, tag=""):
+def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.0, epochs=15, learn_rate=0.002, tag=""):
     
     global curr_epoch
     global use_negative_mining
@@ -173,9 +176,11 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
     train_dataloader = dataset.get_dataloader(train_data_path, img_size, batch_size, num_workers, agrid, False)
     
     eval_dataloader = dataset.get_dataloader(train_data_path, img_size, 1, num_workers, agrid, True)
-    loss_func, optimizer = a2.get_criterion_optimizer(model)
+    loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
 
-    tensorboard_writer =  get_tensorboard_writer(f"a5{tag}_neg_mining" if neg_mining else f"a5{tag}")
+    prefix = f"a5_sf{scale_factor}_lr{learn_rate}{tag}"
+
+    tensorboard_writer =  get_tensorboard_writer(prefix + "_neg_mining" if neg_mining else prefix)
 
     try:
         for i in range(epochs):
@@ -188,18 +193,47 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
     
-    _epochs = 100
-    tag_name="_testing"
+    _tag = "_testing"
+    _epochs = 15
     train_and_evaluate(
         scale_factor=8.0,
-        anchor_widths=[4, 8, 16, 32, 64, 128],
-        aspect_ratios=[0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
-        tag=tag_name, neg_mining=False, epochs=_epochs)
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=False, epochs=_epochs)
     
     train_and_evaluate(
-        anchor_widths=[4, 8, 16, 32, 64, 128],
-        aspect_ratios=[0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
-        tag=tag_name, neg_mining=True, epochs=_epochs)
+        scale_factor=4.0,
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=True, epochs=_epochs)
+    
+    train_and_evaluate(
+        scale_factor=8.0,
+        learn_rate=0.004,
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=False, epochs=_epochs)
+    
+    train_and_evaluate(
+        scale_factor=4.0,
+        learn_rate=0.004,
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=True, epochs=_epochs)
+    
+    train_and_evaluate(
+        scale_factor=8.0,
+        learn_rate=0.008,
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=False, epochs=_epochs)
+    
+    train_and_evaluate(
+        scale_factor=4.0,
+        learn_rate=0.008,
+        anchor_widths=[8, 16, 32, 64, 128],
+        aspect_ratios=[0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=True, epochs=_epochs)
 
 
 if __name__ == "__main__":
