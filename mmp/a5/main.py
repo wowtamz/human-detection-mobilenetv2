@@ -196,7 +196,7 @@ def main():
     _tag = "_testing"
     _epochs = 100
 
-    for sf in [4.0, 0.6, 0.8]:
+    for sf in [4.0, 6.0, 8.0]:
         for lr in [0.004, 0.008, 0.01, 0.015, 0.02]:
             for neg_mine in [False, True]:
                 train_and_evaluate(
