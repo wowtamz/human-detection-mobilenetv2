@@ -83,13 +83,43 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     
     return avg_precision
 
-def evaluate_test():  # feel free to change the arguments
+def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to change the arguments
     """Generates predictions on the provided test dataset.
     This function saves the predictions to a text file.
 
     You decide which arguments this function should receive
     """
-    raise NotImplementedError()
+    # like model_output.txt
+
+    lines = []
+
+    model.eval()
+    
+    for batch in data_loader:
+        images, labels, ids = batch
+        images = images.to(device)
+        labels = labels.to(device)
+
+        prediction = model(images)
+
+        widths, aspect_ratios, rows, cols = anchor_grid.shape()
+
+        rects = []
+
+        for w in range(widths):
+            for a in range(aspect_ratios):
+                for r in range(rows):
+                    for c in range(cols):
+                        if prediction[w][a][r][c] == True:
+                            rect_array = anchor_grid[w][a][r][c]
+                            rects.append(AnnotationRect.fromarray(rect_array))
+        
+        for rect in rects:
+            lines.append(f"{ids} {rect.x1} {rect.y1} {rect.x2} {rect.y2}\n")
+        
+    with open("mmp/a6/eval_test.txt", "w") as f:
+        f.writelines(lines)
+        f.close()
 
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
@@ -118,7 +148,7 @@ def main():
     model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
-    eval_data_loader = get_dataloader(eval_data_path, img_size, batch_size, num_workers, anchor_grid, True)
+    eval_data_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
 
     loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
 
