@@ -4,8 +4,11 @@ import numpy as np
 
 from ..a3.annotation import AnnotationRect
 from ..a4.label_grid import iou
+from ..a4.anchor_grid import get_anchor_grid
+from ..a4 import dataset
+from ..a4.dataset import get_dataloader
 from ..a5.model import MmpNet
-from ..a5.main import get_criterion_optimizer
+from ..a5.main import get_criterion_optimizer, get_tensorboard_writer, train_epoch
 from .nms import non_maximum_suppression
 
 # Only import tensorboard if it is installed
@@ -13,6 +16,8 @@ try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
     SummaryWriter = None
+
+curr_epoch = 0
 
 def batch_inference(
     model: MmpNet, images: torch.Tensor, device: torch.device, anchor_grid: np.ndarray
@@ -86,11 +91,52 @@ def evaluate_test():  # feel free to change the arguments
     """
     raise NotImplementedError()
 
-
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
-    raise NotImplementedError()
+    epochs = 25
+    scale_factor = 8.0
+    learn_rate = 0.02
+    train_data_path = "dataset/train"
+    eval_data_path = "dataset/val"
+    anchor_widths = [8, 16, 32, 64, 128]
+    aspect_ratios = [0.5, 1.0, 1.5, 2.0]
+    img_size = 224
+    batch_size = 64
+    num_workers = 4
 
+    num_rows = int(img_size / scale_factor)
+    num_cols = int(img_size / scale_factor)
 
+    anchor_grid = get_anchor_grid(
+        num_rows,
+        num_cols,
+        scale_factor,
+        anchor_widths,
+        aspect_ratios
+    )
+
+    model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
+    eval_data_loader = get_dataloader(eval_data_path, img_size, batch_size, num_workers, anchor_grid, True)
+
+    loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
+
+    tensorboard_writer = get_tensorboard_writer("Assignment 6.3")
+
+    try:
+        for i in range(epochs):
+            train_epoch(model, train_data_loader, loss_func, optimizer, device)
+            prec_epoch = evaluate(model, train_data_loader, device, None, anchor_grid)
+            tensorboard_writer.add_scalar("Precision/Epoch", prec_epoch, i)
+            print(f"Precision on epoch {i}: {prec_epoch}")
+
+        avg_precision = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
+        print(f"Average precision on validation set: {avg_precision}")
+
+    finally:
+        tensorboard_writer.close()
+
+    
 if __name__ == "__main__":
     main()
