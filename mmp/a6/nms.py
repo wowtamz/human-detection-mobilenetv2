@@ -20,14 +20,9 @@ def non_maximum_suppression(
         result.add(M)
         box = M[0]
 
-        to_remove = []
-        for bs in sorted_boxes_scores[:]:
-            b = bs[0]
-            if iou(box, b) > threshold:
-                to_remove.append(bs)
-        
-        for rm in to_remove:
-            sorted_boxes_scores.remove(rm)
+        sorted_boxes_scores = [
+            bs for bs in sorted_boxes_scores if iou(box, bs[0]) > threshold
+        ]
     
     return list(result)
 
