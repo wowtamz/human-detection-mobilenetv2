@@ -57,8 +57,8 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     model = model.to(device)
     model.eval()
 
-    precisions = np.array()
-    recalls = np.array()
+    precisions = np.array([])
+    recalls = np.array([])
 
     with torch.no_grad():
         for i, data in enumerate(loader):
@@ -123,13 +123,13 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
 
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
-    epochs = 25
+    epochs = 20
     scale_factor = 8.0
     learn_rate = 0.02
     train_data_path = "dataset/train"
     eval_data_path = "dataset/val"
-    anchor_widths = [8, 16, 32, 64, 128]
-    aspect_ratios = [0.5, 1.0, 1.5, 2.0]
+    anchor_widths = [2, 4, 8, 16, 32, 64, 128, 256]
+    aspect_ratios = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
     img_size = 224
     batch_size = 64
     num_workers = 4
