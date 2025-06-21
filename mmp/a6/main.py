@@ -26,23 +26,22 @@ def batch_inference(
     result = []
     images = images.to(device)
 
-    for i in images:
-        boxes_scores = []
-        predicition = model(i)
-        widths, ratios, rows, cols = predicition.shape
-        for w in range(widths):
-            for a in range(ratios):
-                for r in range(rows):
-                    for c in range(cols):
-                        pred_box_array = predicition[w][a][r][c]
-                        pred_rect = AnnotationRect.fromarray(pred_box_array)
+    boxes_scores = []
+    predicition = model(images)
+    widths, ratios, rows, cols = predicition.shape
+    for w in range(widths):
+        for a in range(ratios):
+            for r in range(rows):
+                for c in range(cols):
+                    pred_box_array = predicition[w][a][r][c]
+                    pred_rect = AnnotationRect.fromarray(pred_box_array)
 
-                        anchor_box_array = anchor_grid[w][a][r][c]
-                        anchor_rect = AnnotationRect.fromarray(anchor_box_array)
-                        score = iou(pred_rect, anchor_rect)
-                        boxes_scores.append((pred_rect, score))
-        filtered = non_maximum_suppression(boxes_scores)
-        result.append(filtered)
+                    anchor_box_array = anchor_grid[w][a][r][c]
+                    anchor_rect = AnnotationRect.fromarray(anchor_box_array)
+                    score = iou(pred_rect, anchor_rect)
+                    boxes_scores.append((pred_rect, score))
+    filtered = non_maximum_suppression(boxes_scores)
+    result.append(filtered)
 
     return result
 
