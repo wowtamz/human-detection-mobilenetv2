@@ -33,21 +33,38 @@ def batch_inference(
     result = []
     images = images.to(device)
 
-    boxes_scores = []
-    predicition = model(images)
-    batch_size, widths, ratios, rows, cols = predicition.shape
+    prediction = model(images)
+    batch_size, widths, ratios, rows, cols = prediction.shape
+    
+    for i in range(batch_size):
+        print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
+        i_flat_pred = prediction[i].reshape(-1)
+        i_flat_anchor = anchor_grid.reshape(-1, 4)
+    
+        boxes_scores = []
+
+        for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
+            score = pred_arr
+            anchor_rect = AnnotationRect.fromarray(anchor_arr)
+            boxes_scores.append((anchor_rect, score))
+        
+        filtered = non_maximum_suppression(boxes_scores, 0.3)
+        result.append(filtered)    
+
+    '''
     for i in range(batch_size):
         for w in range(widths):
             for a in range(ratios):
                 for r in range(rows):
                     for c in range(cols):
                         print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-                        score = predicition[i][w][a][r][c]
-                        anchor_box_array = anchor_grid[w][a][r][c]
+                        score = prediction[i, w, a, r, c]
+                        anchor_box_array = anchor_grid[w, a, r, c]
                         anchor_rect = AnnotationRect.fromarray(anchor_box_array)
                         boxes_scores.append((anchor_rect, score))
         filtered = non_maximum_suppression(boxes_scores, 0.3)
         result.append(filtered)
+    '''
 
     return result
 
@@ -64,8 +81,8 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     model = model.to(device)
     model.eval()
 
-    precisions = np.array([])
-    recalls = np.array([])
+    precisions = []
+    recalls = []
 
     with torch.no_grad():
         for i, data in enumerate(loader):
@@ -73,10 +90,12 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             images, labels, ids = data
             
             inference = batch_inference(model, images, device, anchor_grid)
-            prediction = [get_label_grid(anchor_grid, [box_score[0] for box_score in tups], 1.0) for tups in inference]
+            pred_grids = [get_label_grid(anchor_grid, [box_score[0] for box_score in tups], 1.0) for tups in inference]
+            pred_grids = [torch.from_numpy(p) for p in pred_grids] # Converts the label grids from numpy arrays to tensors
+            prediction = torch.stack(pred_grids, dim=0) # Converts the list of label grids to a tensor
             tp = torch.sum(prediction == labels)
-            fp = torch.sum(prediction == True and labels == False)
-            fn = torch.sum(prediction == False and labels == True)
+            fp = torch.sum((prediction == True) & (labels == False)) # Must use bitwise on tensors
+            fn = torch.sum((prediction == False) & (labels == True)) # Must use bitwise on tensors
 
             prec = tp / (tp + fp)
             rec = tp / (tp + fn)
@@ -84,8 +103,8 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             recalls.append(rec)
             print(f"Evaluated batch {i}, Precision ({prec}), Recall ({rec})")
 
-    avg_precision = np.average(precisions)
-    avg_recall = np.average(recalls)
+    avg_precision = np.average(np.array(precisions))
+    avg_recall = np.average(np.array(recalls))
 
     if tensorboard_writer:
         tensorboard_writer.add_scalar("Precision/Recall", avg_precision, avg_recall)

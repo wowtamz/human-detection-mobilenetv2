@@ -40,9 +40,9 @@ def get_label_grid(
             for row in range(rows):
                 for col in range(cols):
                     for gt in gts:
-                        rect = anchor_grid[size][ratio][row][col]
+                        rect = anchor_grid[size, ratio, row, col]
                         if iou(AnnotationRect.fromarray(rect), gt) >= min_iou:
-                            grid[size][ratio][row][col] = True
+                            grid[size, ratio, row, col] = True
     
     return grid
 

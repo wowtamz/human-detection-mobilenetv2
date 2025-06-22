@@ -27,5 +27,5 @@ def get_anchor_grid(
                     box_x2 = center_x + (width / 2)
                     box_y2 = center_y + (height / 2)
 
-                    grid[width_idx][ratio_idx][row][col] = [box_x1, box_y1, box_x2, box_y2]
+                    grid[width_idx, ratio_idx, row, col] = [box_x1, box_y1, box_x2, box_y2]
     return grid
