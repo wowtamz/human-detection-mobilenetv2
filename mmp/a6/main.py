@@ -5,6 +5,7 @@ import numpy as np
 from ..a3.annotation import AnnotationRect
 from ..a4.label_grid import iou
 from ..a4.anchor_grid import get_anchor_grid
+from ..a4.label_grid import get_label_grid
 from ..a4 import dataset
 from ..a4.dataset import get_dataloader
 from ..a5.model import MmpNet
@@ -19,29 +20,34 @@ except ImportError:
 
 curr_epoch = 0
 
+curr_eval_epoch = 0
+curr_eval_batch = 0
+
 def batch_inference(
     model: MmpNet, images: torch.Tensor, device: torch.device, anchor_grid: np.ndarray
 ) -> List[List[Tuple[AnnotationRect, float]]]:
+    
+    global curr_eval_epoch
+    global curr_eval_batch
 
     result = []
     images = images.to(device)
 
     boxes_scores = []
     predicition = model(images)
-    widths, ratios, rows, cols = predicition.shape
-    for w in range(widths):
-        for a in range(ratios):
-            for r in range(rows):
-                for c in range(cols):
-                    pred_box_array = predicition[w][a][r][c]
-                    pred_rect = AnnotationRect.fromarray(pred_box_array)
-
-                    anchor_box_array = anchor_grid[w][a][r][c]
-                    anchor_rect = AnnotationRect.fromarray(anchor_box_array)
-                    score = iou(pred_rect, anchor_rect)
-                    boxes_scores.append((pred_rect, score))
-    filtered = non_maximum_suppression(boxes_scores)
-    result.append(filtered)
+    batch_size, widths, ratios, rows, cols = predicition.shape
+    for i in range(batch_size):
+        for w in range(widths):
+            for a in range(ratios):
+                for r in range(rows):
+                    for c in range(cols):
+                        print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
+                        score = predicition[i][w][a][r][c]
+                        anchor_box_array = anchor_grid[w][a][r][c]
+                        anchor_rect = AnnotationRect.fromarray(anchor_box_array)
+                        boxes_scores.append((anchor_rect, score))
+        filtered = non_maximum_suppression(boxes_scores, 0.3)
+        result.append(filtered)
 
     return result
 
@@ -52,6 +58,8 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
 
     You decide which arguments this function should receive
     """
+
+    global curr_eval_batch
     
     model = model.to(device)
     model.eval()
@@ -61,18 +69,20 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
 
     with torch.no_grad():
         for i, data in enumerate(loader):
+            curr_eval_batch = i
             images, labels, ids = data
             
             inference = batch_inference(model, images, device, anchor_grid)
-            tp = torch.sum(inference == labels)
-            fp = torch.sum(inference == True and labels == False)
-            fn = torch.sum(inference == False and labels == True)
+            prediction = [get_label_grid(anchor_grid, [box_score[0] for box_score in tups], 1.0) for tups in inference]
+            tp = torch.sum(prediction == labels)
+            fp = torch.sum(prediction == True and labels == False)
+            fn = torch.sum(prediction == False and labels == True)
 
             prec = tp / (tp + fp)
             rec = tp / (tp + fn)
             precisions.append(prec)
             recalls.append(rec)
-            print(f"Evaluating batch {i}, Precision ({prec}), Recall ({rec})")
+            print(f"Evaluated batch {i}, Precision ({prec}), Recall ({rec})")
 
     avg_precision = np.average(precisions)
     avg_recall = np.average(recalls)
@@ -88,7 +98,6 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
 
     You decide which arguments this function should receive
     """
-    # like model_output.txt
 
     lines = []
 
@@ -96,25 +105,15 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
     
     for batch in data_loader:
         images, labels, ids = batch
-        images = images.to(device)
-        labels = labels.to(device)
+        #images = images.to(device)
+        #labels = labels.to(device)
 
-        prediction = model(images)
-
-        widths, aspect_ratios, rows, cols = anchor_grid.shape()
-
-        rects = []
-
-        for w in range(widths):
-            for a in range(aspect_ratios):
-                for r in range(rows):
-                    for c in range(cols):
-                        if prediction[w][a][r][c] == True:
-                            rect_array = anchor_grid[w][a][r][c]
-                            rects.append(AnnotationRect.fromarray(rect_array))
-        
-        for rect in rects:
-            lines.append(f"{ids} {rect.x1} {rect.y1} {rect.x2} {rect.y2}\n")
+        predictions = batch_inference(model, images, device, anchor_grid)
+                              
+        for i, img_id in enumerate(ids):
+            rects = predictions[i]
+            for rect in rects:
+                lines.append(f"{img_id} {rect.x1} {rect.y1} {rect.x2} {rect.y2}\n")
         
     with open("mmp/a6/eval_test.txt", "w") as f:
         f.writelines(lines)
@@ -122,13 +121,15 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
 
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
+    global curr_eval_epoch
+
     epochs = 20
     scale_factor = 8.0
     learn_rate = 0.02
     train_data_path = "dataset/train"
     eval_data_path = "dataset/val"
-    anchor_widths = [2, 4, 8, 16, 32, 64, 128, 256]
-    aspect_ratios = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+    anchor_widths = [8, 16, 32, 64, 128]
+    aspect_ratios = [0.25, 0.5, 0.75, 1.0,2.0]
     img_size = 224
     batch_size = 64
     num_workers = 4
@@ -155,6 +156,7 @@ def main():
 
     try:
         for i in range(epochs):
+            curr_eval_epoch = i
             train_epoch(model, train_data_loader, loss_func, optimizer, device)
             prec_epoch = evaluate(model, train_data_loader, device, None, anchor_grid)
             tensorboard_writer.add_scalar("Precision/Epoch", prec_epoch, i)
