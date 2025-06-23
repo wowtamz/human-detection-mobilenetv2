@@ -130,7 +130,8 @@ def main():
     global curr_eval_epoch
     global nms_threshold
 
-    epochs = 20
+    use_negative_mining = True
+    epochs = 10
     scale_factor = 8.0
     learn_rate = 0.02
     train_data_path = "dataset/train"
@@ -164,7 +165,7 @@ def main():
     try:
         for i in range(epochs):
             curr_eval_epoch = i
-            train_epoch(model, train_data_loader, loss_func, optimizer, device)
+            train_epoch(model, train_data_loader, loss_func, optimizer, device, use_negative_mining)
             prec_epoch = evaluate(model, train_data_loader, device, None, anchor_grid)
             tensorboard_writer.add_scalar("Precision/Epoch", prec_epoch, i)
             print(f"Precision on epoch {i}: {prec_epoch}")

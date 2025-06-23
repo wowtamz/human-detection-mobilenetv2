@@ -12,8 +12,6 @@ try:
 except ImportError:
     SummaryWriter = None
 
-use_negative_mining = False
-
 curr_epoch = 0
 
 def step(
@@ -22,18 +20,20 @@ def step(
     optimizer: optim.Optimizer,
     img_batch: torch.Tensor,
     lbl_batch: torch.Tensor,
+    neg_mining: bool = False
 ) -> float:
     """Performs one update step for the model
 
     @return: The loss for the specified batch. Return a float and not a PyTorch tensor
     """
+
     optimizer.zero_grad()
 
     prediction = model(img_batch)
     loss = criterion(prediction, lbl_batch)
 
     # Begin - Exercise 5.3
-    if use_negative_mining:
+    if neg_mining:
         mask = get_random_sampling_mask(lbl_batch, 0.1)
         filtered_loss = loss * mask
         loss = filtered_loss.sum() / mask.sum()
@@ -87,7 +87,7 @@ def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002):
     optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
     return (error_func, optimizer)
 
-def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device):
+def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device, neg_mining = False):
     
     global curr_epoch
     curr_batch = 0
@@ -102,7 +102,7 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device)
         images = images.to(device)
         labels = labels.to(device)
         
-        loss = step(model, criterion, optimizer, images, labels.float())
+        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
 
@@ -145,8 +145,6 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
 def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.0, epochs=15, learn_rate=0.002, tag=""):
     
     global curr_epoch
-    global use_negative_mining
-    use_negative_mining = neg_mining
     train_data_path = "dataset/train"
     val_data_path = "dataset/val"
     img_size = 224
@@ -185,7 +183,7 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
     try:
         for i in range(epochs):
             curr_epoch = i
-            train_epoch(model, train_dataloader, loss_func, optimizer, device)
+            train_epoch(model, train_dataloader, loss_func, optimizer, device, neg_mining)
             eval_epoch(i, model, eval_dataloader, device, tensorboard_writer)
     finally:
         tensorboard_writer.close()
