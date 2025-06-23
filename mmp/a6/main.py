@@ -3,7 +3,6 @@ import torch
 import numpy as np
 
 from ..a3.annotation import AnnotationRect
-from ..a4.label_grid import iou
 from ..a4.anchor_grid import get_anchor_grid
 from ..a4.label_grid import get_label_grid
 from ..a4 import dataset
@@ -23,12 +22,15 @@ curr_epoch = 0
 curr_eval_epoch = 0
 curr_eval_batch = 0
 
+nms_threshold = 0.3
+
 def batch_inference(
     model: MmpNet, images: torch.Tensor, device: torch.device, anchor_grid: np.ndarray
 ) -> List[List[Tuple[AnnotationRect, float]]]:
     
     global curr_eval_epoch
     global curr_eval_batch
+    global nms_threshold
 
     result = []
     images = images.to(device)
@@ -48,23 +50,8 @@ def batch_inference(
             anchor_rect = AnnotationRect.fromarray(anchor_arr)
             boxes_scores.append((anchor_rect, score))
         
-        filtered = non_maximum_suppression(boxes_scores, 0.3)
-        result.append(filtered)    
-
-    '''
-    for i in range(batch_size):
-        for w in range(widths):
-            for a in range(ratios):
-                for r in range(rows):
-                    for c in range(cols):
-                        print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-                        score = prediction[i, w, a, r, c]
-                        anchor_box_array = anchor_grid[w, a, r, c]
-                        anchor_rect = AnnotationRect.fromarray(anchor_box_array)
-                        boxes_scores.append((anchor_rect, score))
-        filtered = non_maximum_suppression(boxes_scores, 0.3)
+        filtered = non_maximum_suppression(boxes_scores, nms_threshold)
         result.append(filtered)
-    '''
 
     return result
 
@@ -141,6 +128,7 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
     global curr_eval_epoch
+    global nms_threshold
 
     epochs = 20
     scale_factor = 8.0
@@ -181,8 +169,10 @@ def main():
             tensorboard_writer.add_scalar("Precision/Epoch", prec_epoch, i)
             print(f"Precision on epoch {i}: {prec_epoch}")
 
-        avg_precision = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
-        print(f"Average precision on validation set: {avg_precision}")
+        for confidence in np.arange(0.0, 1.0, 0.01):
+            nms_threshold = confidence
+            avg_precision = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
+            print(f"Average precision on validation set with cut-off '{nms_threshold}': {avg_precision}")
 
     finally:
         tensorboard_writer.close()
