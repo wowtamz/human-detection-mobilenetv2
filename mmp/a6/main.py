@@ -37,11 +37,12 @@ def batch_inference(
 
     prediction = model(images)
     batch_size, widths, ratios, rows, cols = prediction.shape
+
+    i_flat_anchor = anchor_grid.reshape(-1, 4)
     
     for i in range(batch_size):
         print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
         i_flat_pred = prediction[i].reshape(-1)
-        i_flat_anchor = anchor_grid.reshape(-1, 4)
     
         boxes_scores = []
 
@@ -111,15 +112,18 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
     
     for batch in data_loader:
         images, labels, ids = batch
-        #images = images.to(device)
-        #labels = labels.to(device)
 
         predictions = batch_inference(model, images, device, anchor_grid)
+
+        i_flat_anchor = anchor_grid.reshape(-1, 4)
                               
         for i, img_id in enumerate(ids):
-            rects = predictions[i]
-            for rect in rects:
-                lines.append(f"{img_id} {rect.x1} {rect.y1} {rect.x2} {rect.y2}\n")
+            i_flat_pred = predictions[i].reshape(-1)
+            
+            for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
+                score = pred_arr
+                rect = AnnotationRect.fromarray(anchor_arr)
+                lines.append(f"{img_id} {rect.x1} {rect.y1} {rect.x2} {rect.y2} {score}\n")
         
     with open("mmp/a6/eval_test.txt", "w") as f:
         f.writelines(lines)

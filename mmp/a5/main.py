@@ -66,21 +66,22 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
     
     pos_mask = flat_labels.bool()
     
-    neg_mask = ~pos_mask
-    neg_indices = torch.nonzero(neg_mask, as_tuple=False).squeeze()
+    neg_mask = ~pos_mask # Invert positive mask to create negative mask
+    neg_indices = torch.nonzero(neg_mask, as_tuple=False).squeeze() # Get indices of all negative samples
 
-    num_pos = pos_mask.sum().item()
-    num_neg_to_sample = int(neg_ratio * num_pos)
+    num_pos = pos_mask.sum().item() # Count the number of positive samples
+    num_neg_to_sample = int(neg_ratio * num_pos) # Computer the amount of negative samples required
 
-    num_neg_to_sample = min(num_neg_to_sample, neg_indices.numel())
+    num_neg_to_sample = min(num_neg_to_sample, neg_indices.numel()) # Dont sample more than available negatives
 
-    selected_neg_indices = neg_indices[torch.randperm(len(neg_indices))[:num_neg_to_sample]]
-
-    mask = torch.zeros_like(flat_labels, dtype=torch.bool)
+    selected_neg_indices = neg_indices[torch.randperm(len(neg_indices))[:num_neg_to_sample]] # Randomly select a subset of negative indices
+    
+    mask = torch.zeros_like(flat_labels, dtype=torch.bool) # Create a boolean mask with same shape as flat_labels and all values False
+    # Mask only filters positive samples and selected negative indicies
     mask[pos_mask] = True
     mask[selected_neg_indices] = True
 
-    return mask.view_as(labels)
+    return mask.view_as(labels) # Reshape mask to original shape of labels
 
 def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002):
     error_func = nn.CrossEntropyLoss()
