@@ -30,7 +30,7 @@ def step(
     optimizer.zero_grad()
 
     prediction = model(img_batch)
-    loss = criterion(prediction, lbl_batch)
+    loss = criterion(prediction, lbl_batch.long())
 
     # Begin - Exercise 5.3
     if neg_mining:
@@ -42,7 +42,7 @@ def step(
     loss.backward()
     optimizer.step()
 
-    return loss
+    return loss.item() # loss is a single element Tensor
 
 def get_tensorboard_writer(model_name):
     if SummaryWriter is not None:
@@ -149,7 +149,7 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
     train_data_path = "dataset/train"
     val_data_path = "dataset/val"
     img_size = 224
-    batch_size = 64
+    batch_size = 32
     num_workers = 4
 
     #scale_factor = 8.0 # Default 8.0
@@ -189,21 +189,23 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
     finally:
         tensorboard_writer.close()
 
+    torch.save(model.state_dict(), f"{prefix}model.pth")
+
 def main():
     """Put your training code for exercises 5.2 and 5.3 here"""
     
     _tag = "_testing"
-    _epochs = 50
+    _epochs = 15
 
-    for sf in [4.0, 6.0, 8.0]:
-        for lr in [0.002, 0.004, 0.008, 0.01, 0.015, 0.02]:
-            for neg_mine in [False, True]:
-                train_and_evaluate(
-                scale_factor=sf,
-                learn_rate=lr,
-                anchor_widths=[8, 16, 32, 64, 128],
-                aspect_ratios=[0.5, 1.0, 1.5, 2.0],
-                tag=_tag, neg_mining=neg_mine, epochs=_epochs)
+    sf = 8.0
+    lr = 0.02
+    neg_mine = True
+    train_and_evaluate(
+        scale_factor=sf,
+        learn_rate=lr,
+        anchor_widths=[4, 8, 16, 32, 64, 128, 224],
+        aspect_ratios=[0.1, 0.25, 0.5, 1.0, 1.5, 2.0],
+        tag=_tag, neg_mining=neg_mine, epochs=_epochs)
     
 if __name__ == "__main__":
     main()
