@@ -37,13 +37,12 @@ def batch_inference(
 
     prediction = model(images)
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
-    
-    prediction_score = prediction[:, 1, :, :, :, :] # Get scores of human detection (channel = 0)    
+       
     i_flat_anchor = anchor_grid.reshape(-1, 4)
     
     for i in range(batch_size):
-        print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-        i_flat_pred = prediction_score[i].reshape(-1)
+        print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
+        i_flat_pred = prediction[i].reshape(-1)
     
         boxes_scores = []
 
@@ -111,21 +110,31 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
     
     model = model.to(device)
     model.eval()
+
+    count = 0
     
     for batch in data_loader:
         images, labels, ids = batch
 
-        predictions = batch_inference(model, images, device, anchor_grid)
+        inference = batch_inference(model, images, device, anchor_grid)
+        pred_grids = [get_label_grid(anchor_grid, [box_score[0] for box_score in tups], 1.0) for tups in inference]
+        pred_grids = [torch.from_numpy(p) for p in pred_grids] # Converts the label grids from numpy arrays to tensors
 
         i_flat_anchor = anchor_grid.reshape(-1, 4)
                               
         for i, img_id in enumerate(ids):
-            i_flat_pred = predictions[i].reshape(-1) # Only tensors or np.arrays has reshape() method
+
+            print(f"Evaluating img {count}")
+
+            #inference_i = torch.tensor(inference[i])
+            #i_flat_pred = inference_i.reshape(-1) # Only tensors or np.arrays has reshape() method
             
-            for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
+            for pred_arr, anchor_arr in zip(pred_grids, i_flat_anchor):
                 score = pred_arr
                 rect = AnnotationRect.fromarray(anchor_arr)
                 lines.append(f"{img_id} {rect.x1} {rect.y1} {rect.x2} {rect.y2} {score}\n")
+        
+        count += 1
         
     with open("mmp/a6/eval_test.txt", "w") as f:
         f.writelines(lines)
@@ -145,8 +154,8 @@ def main():
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]
     aspect_ratios = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]
     img_size = 224
-    batch_size = 64
-    num_workers = 4
+    batch_size = 32
+    num_workers = 0
 
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
@@ -164,7 +173,8 @@ def main():
     train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
     eval_data_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
     
-    model.load_state_dict(torch.load("a5_sf8.0_lr0.02_testingmodel.pth", weights_only = True))
+    state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
+    model.load_state_dict(state_dict)
 
     evaluate_test(model, eval_data_loader, device, anchor_grid)
     return
