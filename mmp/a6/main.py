@@ -36,13 +36,14 @@ def batch_inference(
     images = images.to(device)
 
     prediction = model(images)
-    batch_size, widths, ratios, rows, cols = prediction.shape
-
+    batch_size, channels, widths, ratios, rows, cols = prediction.shape
+    
+    prediction_score = prediction[:, 1, :, :, :, :] # Get scores of human detection (channel = 0)    
     i_flat_anchor = anchor_grid.reshape(-1, 4)
     
     for i in range(batch_size):
         print(f"evaluating e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-        i_flat_pred = prediction[i].reshape(-1)
+        i_flat_pred = prediction_score[i].reshape(-1)
     
         boxes_scores = []
 
@@ -107,7 +108,8 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
     """
 
     lines = []
-
+    
+    model = model.to(device)
     model.eval()
     
     for batch in data_loader:
@@ -118,7 +120,7 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
         i_flat_anchor = anchor_grid.reshape(-1, 4)
                               
         for i, img_id in enumerate(ids):
-            i_flat_pred = predictions[i].reshape(-1)
+            i_flat_pred = predictions[i].reshape(-1) # Only tensors or np.arrays has reshape() method
             
             for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
                 score = pred_arr
@@ -139,9 +141,9 @@ def main():
     scale_factor = 8.0
     learn_rate = 0.02
     train_data_path = "dataset/train"
-    eval_data_path = "dataset/val"
-    anchor_widths = [8, 16, 32, 64, 128]
-    aspect_ratios = [0.25, 0.5, 0.75, 1.0,2.0]
+    eval_data_path = "new_dataset/val"
+    anchor_widths = [4, 8, 16, 32, 64, 128, 224]
+    aspect_ratios = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]
     img_size = 224
     batch_size = 64
     num_workers = 4
@@ -161,11 +163,16 @@ def main():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
     eval_data_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
+    
+    model.load_state_dict(torch.load("a5_sf8.0_lr0.02_testingmodel.pth", weights_only = True))
 
+    evaluate_test(model, eval_data_loader, device, anchor_grid)
+    return
+    
     loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
 
     tensorboard_writer = get_tensorboard_writer("Assignment 6.3")
-
+    
     try:
         for i in range(epochs):
             curr_eval_epoch = i
@@ -181,6 +188,7 @@ def main():
 
     finally:
         tensorboard_writer.close()
+    
 
     
 if __name__ == "__main__":

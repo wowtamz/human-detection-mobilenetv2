@@ -128,7 +128,7 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
             labels = labels.float()
 
             prediction = model(images)
-            loss = criterion(prediction, labels)
+            loss = criterion(prediction, labels.long())
             total += images.shape[0]
             total_loss += loss.item() * images.shape[0]
             correct += torch.sum(prediction == labels)
@@ -185,7 +185,7 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
         for i in range(epochs):
             curr_epoch = i
             train_epoch(model, train_dataloader, loss_func, optimizer, device, neg_mining)
-            eval_epoch(i, model, eval_dataloader, device, tensorboard_writer)
+            #eval_epoch(i, model, eval_dataloader, device, tensorboard_writer)
     finally:
         tensorboard_writer.close()
 
