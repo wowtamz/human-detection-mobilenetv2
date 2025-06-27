@@ -97,8 +97,6 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     if tensorboard_writer:
         for i, p in enumerate(precision):
             r = recall[i]
-            print(f"p={p}")
-            print(f"r={r}")
             tensorboard_writer.add_scalar("Precision/Recall", p, r)
     
     return ap
@@ -171,18 +169,11 @@ def main():
     train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
     eval_data_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
     
-    #state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
-    #model.load_state_dict(state_dict)
-    #evaluate_test(model, eval_data_loader, device, anchor_grid)
-    
     loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
 
     tensorboard_writer = get_tensorboard_writer("a6_exercise_3")
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-
-    ap_epoch = evaluate(model, train_data_loader, device, tensorboard_writer, anchor_grid)
-    return
     
     try:
         for i in range(epochs):
@@ -194,10 +185,12 @@ def main():
             if i > 0 and i % 5 == 0:
                 torch.save(model.state_dict(), f"a6_lr{learn_rate}_e{i}_weights_{timestamp}.pth")
 
-        for confidence in np.arange(0.0, 1.0, 0.05):
-            nms_threshold = confidence
-            ap = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
-            print(f"Average precision on validation set with cut-off '{nms_threshold}': {ap}")
+        # load previously trained model here
+        #state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
+        #model.load_state_dict(state_dict)
+
+        ap = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
+        print(f"Average Precision on validation set: {ap}")
 
     finally:
         tensorboard_writer.close()
