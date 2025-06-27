@@ -72,6 +72,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
         annotations_scaled = list(
             map(lambda a: a.scaled(scale), self.annotation_dict[img_id])
         )
+
+        self.annotation_dict[img_id] = annotations_scaled
         
         tfm = torchvision.transforms.Compose([
             torchvision.transforms.Pad(padding, 0, "constant"),
