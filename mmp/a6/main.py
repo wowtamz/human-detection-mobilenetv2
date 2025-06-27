@@ -79,6 +79,10 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     with torch.no_grad():
 
         for i, data in enumerate(loader):
+
+            if i == 2:
+                break
+
             curr_eval_batch = i
             images, labels, ids = data
             
@@ -88,10 +92,14 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
                 dboxes[img_id] = inference[j]
                 gboxes[img_id] = gt_dict[img_id]
     
-    ap, prec, recall = calculate_ap_pr(dboxes, gboxes)
+    ap, precision, recall = calculate_ap_pr(dboxes, gboxes)
 
     if tensorboard_writer:
-        tensorboard_writer.add_scalar("Precision/Recall", prec, recall)
+        for i, p in enumerate(precision):
+            r = recall[i]
+            print(f"p={p}")
+            print(f"r={r}")
+            tensorboard_writer.add_scalar("Precision/Recall", p, r)
     
     return ap
 
@@ -172,6 +180,9 @@ def main():
     tensorboard_writer = get_tensorboard_writer("a6_exercise_3")
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+
+    ap_epoch = evaluate(model, train_data_loader, device, tensorboard_writer, anchor_grid)
+    return
     
     try:
         for i in range(epochs):
@@ -180,8 +191,8 @@ def main():
             ap_epoch = evaluate(model, train_data_loader, device, None, anchor_grid)
             tensorboard_writer.add_scalar("Precision/Epoch", ap_epoch, i)
             print(f"Precision on epoch {i}: {ap_epoch}")
-        
-        torch.save(model.state_dict(), f"a6_lr{learn_rate}_weights_{timestamp}.pth")
+            if i > 0 and i % 5 == 0:
+                torch.save(model.state_dict(), f"a6_lr{learn_rate}_e{i}_weights_{timestamp}.pth")
 
         for confidence in np.arange(0.0, 1.0, 0.05):
             nms_threshold = confidence
