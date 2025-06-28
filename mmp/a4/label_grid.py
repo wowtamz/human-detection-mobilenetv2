@@ -35,11 +35,10 @@ def get_label_grid(
 
     grid_size = sizes * ratios * rows * cols
 
-    grid = [None] * grid_size # Preallocate grid memory
-    grid = np.array(grid, dtype=bool)
+    grid = np.zeros(grid_size, dtype=bool) # Preallocate flat grid memory
 
     anchor_grid_flat = anchor_grid.reshape(-1, 4)
-
+    
     for i in range(grid_size):
         for gt in gts:
             rect = anchor_grid_flat[i]
@@ -60,8 +59,7 @@ def get_label_grid(
                         rect = anchor_grid[size, ratio, row, col]
                         if iou(AnnotationRect.fromarray(rect), gt) >= min_iou:
                             grid[size, ratio, row, col] = True
-    '''
-    
+    '''    
     return grid
 
 """Exercise 4.2 (c)"""
