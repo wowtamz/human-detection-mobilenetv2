@@ -21,7 +21,7 @@ def non_maximum_suppression(
         box = M[0]
 
         sorted_boxes_scores = [
-            bs for bs in sorted_boxes_scores if iou(box, bs[0]) > threshold
+            bs for bs in sorted_boxes_scores if iou(box, bs[0]) <= threshold
         ]
     
     return list(result)
