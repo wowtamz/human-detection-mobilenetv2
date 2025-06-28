@@ -101,7 +101,7 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     
     return ap
 
-def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to change the arguments
+def evaluate_test(model, data_loader, device, anchor_grid, timestamp):  # feel free to change the arguments
     """Generates predictions on the provided test dataset.
     This function saves the predictions to a text file.
 
@@ -132,7 +132,7 @@ def evaluate_test(model, data_loader, device, anchor_grid):  # feel free to chan
         
         count += 1
         
-    with open("mmp/a6/eval_test.txt", "w") as f:
+    with open(f"mmp/a6/eval_{timestamp}.txt", "w") as f:
         f.writelines(lines)
         f.close()
 
@@ -142,9 +142,9 @@ def main():
     global nms_threshold
 
     use_negative_mining = True
-    epochs = 10
+    epochs = 50
     scale_factor = 8.0
-    learn_rate = 0.02
+    learn_rate = 0.01
     train_data_path = "new_dataset/train"
     eval_data_path = "new_dataset/val"
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]
@@ -182,12 +182,13 @@ def main():
             ap_epoch = evaluate(model, train_data_loader, device, None, anchor_grid)
             tensorboard_writer.add_scalar("Precision/Epoch", ap_epoch, i)
             print(f"Precision on epoch {i}: {ap_epoch}")
-            if i > 0 and i % 5 == 0:
+            if (i+1) % 5 == 0:
                 torch.save(model.state_dict(), f"a6_lr{learn_rate}_e{i}_weights_{timestamp}.pth")
 
         # load previously trained model here
         #state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
         #model.load_state_dict(state_dict)
+        #evaluate_test(model, eval_data_loader, device, anchor_grid, timestamp)
 
         ap = evaluate(model, eval_data_loader, device, tensorboard_writer, anchor_grid)
         print(f"Average Precision on validation set: {ap}")
