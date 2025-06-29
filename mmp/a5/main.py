@@ -106,6 +106,7 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device,
         loss = step(model, criterion, optimizer, images, labels.float(), neg_mining)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
+    curr_epoch += 1
 
 def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.device, tensorboard_writer = None) -> float:
 
@@ -145,7 +146,6 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
 
 def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.0, epochs=15, learn_rate=0.002, tag=""):
     
-    global curr_epoch
     train_data_path = "dataset/train"
     val_data_path = "dataset/val"
     img_size = 224
@@ -183,7 +183,6 @@ def train_and_evaluate(neg_mining, anchor_widths, aspect_ratios, scale_factor=8.
 
     try:
         for i in range(epochs):
-            curr_epoch = i
             train_epoch(model, train_dataloader, loss_func, optimizer, device, neg_mining)
             #eval_epoch(i, model, eval_dataloader, device, tensorboard_writer)
     finally:

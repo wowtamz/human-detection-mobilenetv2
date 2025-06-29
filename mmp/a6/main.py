@@ -44,15 +44,27 @@ def batch_inference(
     
     for i in range(batch_size):
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-        i_flat_pred = prediction[i].reshape(-1)
-    
-        boxes_scores = []
+        human_channel = 1
+        scores_flat = prediction[i, human_channel].reshape(-1)
+        t = 0.5
+        filtered_indices = torch.nonzero(scores_flat > t, as_tuple=False).squeeze()
+        indices = [filtered_indices.item()] if filtered_indices.dim() == 0 else filtered_indices.tolist()
 
+        boxes_scores = []
+        
+        for j in indices:
+            score = scores_flat[i]
+            rect_array = i_flat_anchor[i]
+            rect = AnnotationRect.fromarray(rect_array)
+            boxes_scores.append((rect, score))
+        
+        '''
         for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
             score = pred_arr.item()
             anchor_rect = AnnotationRect.fromarray(anchor_arr)
             boxes_scores.append((anchor_rect, score))
-        
+        '''
+
         filtered = non_maximum_suppression(boxes_scores, nms_threshold)
         result.append(filtered)
 
