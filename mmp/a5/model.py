@@ -17,8 +17,7 @@ class MmpNet(torch.nn.Module):
         
         self.custom = nn.Sequential(
             nn.Conv2d(channels_in, channels_out, kernel_size=1),
-            nn.Upsample(size=(rows, cols), mode="bilinear", align_corners=False), # Upsample to match (rows, cols)
-            nn.Sigmoid()
+            nn.Upsample(size=(rows, cols), mode="bilinear", align_corners=False) # Upsample to match (rows, cols)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
