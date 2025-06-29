@@ -31,13 +31,21 @@ def step(
 
     prediction = model(img_batch)
     loss = criterion(prediction, lbl_batch.long())
-
+    if torch.isnan(loss).any():
+        print("NaN in loss before masking")
+        
     # Begin - Exercise 5.3
     if neg_mining:
         mask = get_random_sampling_mask(lbl_batch, 0.1)
+        if torch.isnan(mask).any():
+            print("NaN in mask")
         filtered_loss = loss * mask
-        loss = filtered_loss.sum() / mask.sum()
+        loss = filtered_loss.sum() / (mask.sum() + 1e-8) # Prevent division by zero
+    else:
+        loss = loss.mean()
     # End Ex. 5.3
+
+    torch.autograd.set_detect_anomaly(True) # Enable anomaly detection
 
     loss.backward()
     optimizer.step()
@@ -84,7 +92,7 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
     return mask.view_as(labels) # Reshape mask to original shape of labels
 
 def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002):
-    error_func = nn.CrossEntropyLoss()
+    error_func = nn.CrossEntropyLoss(reduction="none")
     optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
     return (error_func, optimizer)
 

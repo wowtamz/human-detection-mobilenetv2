@@ -156,7 +156,7 @@ def main():
     use_negative_mining = True
     epochs = 50
     scale_factor = 8.0
-    learn_rate = 0.01
+    learn_rate = 0.005
     train_data_path = "new_dataset/train"
     eval_data_path = "new_dataset/val"
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]
