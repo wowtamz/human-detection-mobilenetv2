@@ -40,7 +40,7 @@ def batch_inference(
     prediction = model(images)
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
        
-    i_flat_anchor = anchor_grid.reshape(-1, 4)
+    anchor_flat = anchor_grid.reshape(-1, 4)
     
     for i in range(batch_size):
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
@@ -53,8 +53,8 @@ def batch_inference(
         boxes_scores = []
         
         for j in indices:
-            score = scores_flat[i]
-            rect_array = i_flat_anchor[i]
+            score = scores_flat[j]
+            rect_array = anchor_flat[j]
             rect = AnnotationRect.fromarray(rect_array)
             boxes_scores.append((rect, score))
         
