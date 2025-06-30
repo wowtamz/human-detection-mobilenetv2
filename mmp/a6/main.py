@@ -46,7 +46,7 @@ def batch_inference(
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
         human_channel = 1
         scores_flat = prediction[i, human_channel].reshape(-1)
-        t = 0.5
+        t = 0.3
         filtered_indices = torch.nonzero(scores_flat > t, as_tuple=False).squeeze()
         indices = [filtered_indices.item()] if filtered_indices.dim() == 0 else filtered_indices.tolist()
 
@@ -156,7 +156,7 @@ def main():
     use_negative_mining = True
     epochs = 50
     scale_factor = 8.0
-    learn_rate = 0.005
+    learn_rate = 0.0005
     train_data_path = "new_dataset/train"
     eval_data_path = "new_dataset/val"
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]

@@ -95,7 +95,10 @@ def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002, device = None)
     weights = torch.tensor([0.1, 0.9])
     weights = weights.to(device) if device else weights
     error_func = nn.CrossEntropyLoss(reduction="none", weight=weights)
-    optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
+
+    # Only train parameters that have requires_grad set to True
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = torch.optim.SGD(trainable_params, lr=learn_rate)
     return (error_func, optimizer)
 
 def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device, neg_mining = False):
