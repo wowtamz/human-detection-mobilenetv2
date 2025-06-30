@@ -92,9 +92,6 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
 
         for i, data in enumerate(loader):
 
-            if i == 2:
-                break
-
             curr_eval_batch = i
             images, labels, ids = data
             
@@ -156,7 +153,7 @@ def main():
     use_negative_mining = True
     epochs = 50
     scale_factor = 8.0
-    learn_rate = 0.0005
+    learn_rate = 0.002
     train_data_path = "new_dataset/train"
     eval_data_path = "new_dataset/val"
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]
