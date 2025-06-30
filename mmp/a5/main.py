@@ -91,8 +91,10 @@ def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Te
 
     return mask.view_as(labels) # Reshape mask to original shape of labels
 
-def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002):
-    error_func = nn.CrossEntropyLoss(reduction="none")
+def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002, device = None):
+    weights = torch.tensor([0.1, 0.9])
+    weights = weights.to(device) if device else weights
+    error_func = nn.CrossEntropyLoss(reduction="none", weight=weights)
     optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate)
     return (error_func, optimizer)
 

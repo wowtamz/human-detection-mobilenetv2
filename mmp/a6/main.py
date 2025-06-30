@@ -181,7 +181,7 @@ def main():
     train_data_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
     eval_data_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
     
-    loss_func, optimizer = get_criterion_optimizer(model, learn_rate)
+    loss_func, optimizer = get_criterion_optimizer(model, learn_rate, device)
 
     tensorboard_writer = get_tensorboard_writer("a6_exercise_3")
 
