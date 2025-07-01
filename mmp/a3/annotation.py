@@ -2,6 +2,7 @@ from typing import List
 from pathlib import Path
 import numpy as np
 import os
+import math
 from PIL import Image, ImageDraw
 
 class AnnotationRect:
@@ -24,6 +25,42 @@ class AnnotationRect:
             self.y1 * scale + pad_y,
             self.x2 * scale + pad_x,
             self.y2 * scale + pad_y
+        )
+    
+    def flip_horizontal(self, img_size):
+        new_x1 = img_size - self.x2
+        new_x2 = img_size - self.x1
+        self.x1, self.x2 = new_x1, new_x2
+    
+    def rotate(self, degrees, img_size):
+        degrees = -degrees # Degrees need to be inverted
+        angle = math.radians(degrees)
+        cx, cy = img_size / 2, img_size / 2
+
+        points = np.array([
+            [self.x1, self.y1],
+            [self.x2, self.y1],
+            [self.x2, self.y2],
+            [self.x1, self.y2]
+        ])
+
+        rot_matrix = np.array([
+            [math.cos(angle), -math.sin(angle)],
+            [math.sin(angle), math.cos(angle)]
+        ])
+
+        translated = points - np.array([cx, cy])
+        rotated = np.dot(translated, rot_matrix.T)
+        rotated += np.array([cx, cy])
+
+        x_coords = rotated[:, 0]
+        y_coords = rotated[:, 1]
+
+        return AnnotationRect(
+            x_coords.min(),
+            y_coords.min(),
+            x_coords.max(),
+            y_coords.max()
         )
 
     def __array__(self) -> np.ndarray:
