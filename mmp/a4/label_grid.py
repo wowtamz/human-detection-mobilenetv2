@@ -62,6 +62,19 @@ def get_label_grid(
     '''    
     return grid
 
+def get_matching_rects(anch_grid, label_grid):
+    rects = []
+    sizes, ratios, rows, cols, _ = anch_grid.shape
+    for size in range(sizes):
+        for ratio in range(ratios):
+            for row in range(rows):
+                for col in range(cols):
+                    if label_grid[size, ratio, row, col]:
+                        rect = AnnotationRect.fromarray(anch_grid[size, ratio, row, col])
+                        rects.append(rect)
+    return rects
+
+
 """Exercise 4.2 (c)"""
 
 def draw_matching_rects(img, anch_grid, label_grid):
