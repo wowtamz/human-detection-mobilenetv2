@@ -22,7 +22,7 @@ class MMP_Dataset(torch.utils.data.Dataset):
         anchor_grid: np.ndarray,
         min_iou: float,
         is_test: bool,
-        augmentation = None
+        augmentations: list = []
     ):
         """
         @param anchor_grid: The anchor grid to be used for every image
@@ -38,7 +38,7 @@ class MMP_Dataset(torch.utils.data.Dataset):
         path = list(f"{path_to_data}/{p}" for p in os.listdir(path_to_data) if p.endswith(".jpg"))
         self.image_paths = list(sorted(path))
         self.annotation_dict = self.get_annotation_dict()
-        self.augmentation = augmentation
+        self.augmentations = augmentations
 
     def get_annotation_dict(self) -> dict:
         dictionary = dict()
@@ -76,26 +76,28 @@ class MMP_Dataset(torch.utils.data.Dataset):
             map(lambda a: a.scaled(scale), self.annotation_dict[img_id])
         )
 
-        if self.augmentation:
-            if isinstance(self.augmentation, torchvision.transforms.RandomHorizontalFlip):
+        def_transforms = [
+            torchvision.transforms.Pad(padding, 0, "constant"),
+            torchvision.transforms.Resize((self.image_size, self.image_size)),
+            # Augmentations added here
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ]
+
+        for augmentation in self.augmentations:
+            if isinstance(augmentation, torchvision.transforms.RandomHorizontalFlip):
                 for rect in annotations_scaled:
                     rect.flip_horizontal(self.image_size)
 
-            if isinstance(self.augmentation, torchvision.transforms.RandomRotation):
-                rotate_degrees = self.augmentation.degrees[0]
+            if isinstance(augmentation, torchvision.transforms.RandomRotation):
+                rotate_degrees = augmentation.degrees[0]
                 annotations_scaled = [rect.rotate(rotate_degrees, self.image_size) for rect in annotations_scaled]
-        else:
-            self.augmentation = torchvision.transforms.Lambda(lambda x: x), # Lambda is a placeholder Transform
-
+            
+            def_transforms.insert(2, augmentation)
+            
         self.annotation_dict[img_id] = annotations_scaled
         
-        tfm = torchvision.transforms.Compose([
-            torchvision.transforms.Pad(padding, 0, "constant"),
-            torchvision.transforms.Resize((self.image_size, self.image_size)),
-            self.augmentation,
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        tfm = torchvision.transforms.Compose(def_transforms)
         img_tensor = tfm(img)
         l_grid = torch.Tensor() if len(annotations_scaled) == 0 else label_grid.get_label_grid(self.anchor_grid, annotations_scaled, self.min_iou)
 
@@ -128,12 +130,12 @@ def get_dataloader(
     num_workers: int,
     anchor_grid: np.ndarray,
     is_test: bool,
-    augmentation = None
+    augmentations: list = []
 ) -> DataLoader:
 
     min_iou = 0.7
     
-    dataset = MMP_Dataset(path_to_data, image_size, anchor_grid, min_iou, is_test=is_test, augmentation=augmentation)
+    dataset = MMP_Dataset(path_to_data, image_size, anchor_grid, min_iou, is_test=is_test, augmentations=augmentations)
 
     dataloader = DataLoader(dataset=dataset,
                             batch_size=batch_size,
@@ -205,19 +207,21 @@ if __name__ == "__main__":
     current_batch = 0
 
     augmentations = [
-        ("original", torchvision.transforms.Lambda(lambda x: x)),
-        ("brightness", get_color_transformation(brightness=1.0)),
-        ("blur", get_blur_transformation()),
-        ("grayscale", get_grayscale_transformation()),
-        ("horzontal_flip", get_horizontal_flip_transformation()),
-        ("rotate", get_rotation_transformation(45.0))
+        ("original", [torchvision.transforms.Lambda(lambda x: x)]),
+       # ("brightness", [get_color_transformation(brightness=1.0)]),
+        #("blur", [get_blur_transformation()]),
+        #("grayscale", [get_grayscale_transformation()]),
+        #("grayscale_flip", [get_grayscale_transformation(), get_horizontal_flip_transformation()]),
+        #("horzontal_flip", [get_horizontal_flip_transformation()]),
+        #("rotate", [get_rotation_transformation(45.0)])
+        #("rotate_flip", [get_rotation_transformation(45.0), get_horizontal_flip_transformation()]),
     ]
 
     for aug_tup in augmentations:
         aug_name = aug_tup[0]
-        augmentation = aug_tup[1]
+        augmentation_list = aug_tup[1]
 
-        dataloader = get_dataloader(train_data_dir, img_size, batch_size, num_workers, agrid, is_test=True, augmentation=augmentation)
+        dataloader = get_dataloader(train_data_dir, img_size, batch_size, num_workers, agrid, is_test=True, augmentations=augmentation_list)
         dataloader.dataset.min_iou = 0.6
 
         for batch in dataloader:
@@ -246,7 +250,7 @@ if __name__ == "__main__":
                     img_draw = ImageDraw.Draw(img)
                     rect = t[0]
                     annotation.draw_annotation(img_draw, rect.__array__(), color="red")
-                    
+
             img.save(f"mmp/a7/img06-b{current_batch}-{aug_name}.jpg")
 
             current_batch += 1
