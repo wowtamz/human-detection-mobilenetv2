@@ -10,15 +10,6 @@ class MmpNet(torch.nn.Module):
         self.rows = rows
         self.cols = cols
         self.model = torchvision.models.mobilenet_v2(weights = "DEFAULT").features # only use mobilenet's features (ex. 5.1 b)
-        
-        # Freeze all layers for training
-        for param in self.model.parameters():
-            param.requires_grad = False
-
-        # Unfreeze last train_layers for training
-        train_layers = 3
-        for param in self.model[-train_layers:].parameters():
-            param.requires_grad = True
 
         # custom Classifier Label Grid 4 (Page 14)
         channels_in = self.model[-1][0].out_channels # model-output: 1280 channels
