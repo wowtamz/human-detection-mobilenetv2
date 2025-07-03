@@ -64,30 +64,31 @@ def main():
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         loss_func, optimizer = get_criterion_optimizer(model, learn_rate, device)
 
-        training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
+        augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
 
-        train(epochs, model, loss_func, optimizer, device, training_loader, use_negative_mining, evaluate=False)
-        ap = get_average_precision(model, training_loader, device)
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate=False, augments=name)
+        
+        ap = get_average_precision(model, eval_loader, device, augments=name)
         
         results[name] = ap
 
         # Free model and dataset from memory
         del model
-        del training_loader
+        del augmented_training_loader
         del eval_loader
         del optimizer
         torch.cuda.empty_cache()
         gc.collect()
 
 
-def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate = False):
+def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate = False, augments = ""):
 
     global curr_eval_epoch
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-    tensorboard_writer = get_tensorboard_writer(f"a7_training_{timestamp}")
+    tensorboard_writer = get_tensorboard_writer(f"a7_training_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
 
@@ -105,13 +106,13 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
     finally:
         tensorboard_writer.close() # Close writer even on failure
 
-def get_average_precision(model, loader, device):
+def get_average_precision(model, loader, device, augments = ""):
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
     data_path = loader.dataset.path_to_data.removeprefix("new_dataset/").removesuffix("/")
 
-    tensorboard_writer = get_tensorboard_writer(f"a7_evaluate_dataset-{data_path}_{timestamp}")
+    tensorboard_writer = get_tensorboard_writer(f"a7_evaluate_dataset-{data_path}_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
     try:
