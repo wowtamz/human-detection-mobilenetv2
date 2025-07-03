@@ -109,7 +109,7 @@ def get_average_precision(model, loader, device):
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-    data_path = loader.dataset.path_to_data.removeprefix("new_dataset/")
+    data_path = loader.dataset.path_to_data.removeprefix("new_dataset/").removesuffix("/")
 
     tensorboard_writer = get_tensorboard_writer(f"a7_evaluate_dataset-{data_path}_{timestamp}")
 
