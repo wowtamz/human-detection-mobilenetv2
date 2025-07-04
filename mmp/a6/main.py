@@ -5,9 +5,7 @@ import numpy as np
 from datetime import datetime
 from ..a3.annotation import AnnotationRect
 from ..a4.anchor_grid import get_anchor_grid
-from ..a4.label_grid import get_label_grid
-from ..a4 import dataset
-from ..a4.dataset import get_dataloader
+from ..a4.dataset import get_dataloader, get_rescaled_annotation
 from ..a5.model import MmpNet
 from ..a5.main import get_criterion_optimizer, get_tensorboard_writer, train_epoch
 from .nms import non_maximum_suppression
@@ -37,7 +35,9 @@ def batch_inference(
     result = []
     images = images.to(device)
 
-    prediction = model(images)
+    logits = model(images)
+    prediction = torch.softmax(logits, dim=1)
+
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
        
     anchor_flat = anchor_grid.reshape(-1, 4)
@@ -47,23 +47,13 @@ def batch_inference(
         human_channel = 1
         scores_flat = prediction[i, human_channel].reshape(-1)
         t = 0.3
-        filtered_indices = torch.nonzero(scores_flat > t, as_tuple=False).squeeze()
-        indices = [filtered_indices.item()] if filtered_indices.dim() == 0 else filtered_indices.tolist()
 
         boxes_scores = []
-        
-        for j in indices:
-            score = scores_flat[j]
+
+        for j, score in enumerate(scores_flat):
             rect_array = anchor_flat[j]
             rect = AnnotationRect.fromarray(rect_array)
             boxes_scores.append((rect, score))
-        
-        '''
-        for pred_arr, anchor_arr in zip(i_flat_pred, i_flat_anchor):
-            score = pred_arr.item()
-            anchor_rect = AnnotationRect.fromarray(anchor_arr)
-            boxes_scores.append((anchor_rect, score))
-        '''
 
         filtered = non_maximum_suppression(boxes_scores, nms_threshold)
         result.append(filtered)
@@ -96,9 +86,10 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             images, labels, ids = data
             
             inference = batch_inference(model, images, device, anchor_grid)
-
+            
             for j, img_id in enumerate(ids):
-                dboxes[img_id] = inference[j]
+                predicted_rect = loader.dataset.get_rescaled_annotation(img_id, inference[j]) # Rescale prediction rect to original size
+                dboxes[img_id] = predicted_rect
                 gboxes[img_id] = gt_dict[img_id]
     
     ap, precision, recall = calculate_ap_pr(dboxes, gboxes)

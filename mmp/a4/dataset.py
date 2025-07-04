@@ -47,6 +47,13 @@ class MMP_Dataset(torch.utils.data.Dataset):
             else:
                 dictionary[key] = []
         return dictionary
+    
+    def get_rescaled_annotation(self, img_id, rect: annotation.AnnotationRect):
+        img_path = self.get_image_path(img_id)
+        img = Image.open(img_path)
+        width, height = img.size
+        scale = self.image_size / max(width, height)
+        return rect.rescaled(scale)
 
     def get_image_id(self, image_path):
         return image_path.removeprefix(self.path_to_data).removesuffix(".jpg")

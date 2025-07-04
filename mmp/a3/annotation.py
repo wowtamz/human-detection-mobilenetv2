@@ -19,12 +19,20 @@ class AnnotationRect:
         width = abs(self.x1 - self.x2)
         return height * width
     
-    def scaled(self, scale, pad_x = 0, pad_y = 0):
+    def scaled(self, scale):
         return AnnotationRect(
-            self.x1 * scale + pad_x,
-            self.y1 * scale + pad_y,
-            self.x2 * scale + pad_x,
-            self.y2 * scale + pad_y
+            self.x1 * scale,
+            self.y1 * scale,
+            self.x2 * scale,
+            self.y2 * scale
+        )
+    
+    def rescaled(self, scale):
+        return AnnotationRect(
+            self.x1 / scale,
+            self.y1 / scale,
+            self.x2 / scale,
+            self.y2 / scale
         )
     
     def flip_horizontal(self, img_size):
