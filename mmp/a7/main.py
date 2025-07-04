@@ -25,7 +25,7 @@ nms_threshold = 0.3
 def main():
 
     use_negative_mining = True
-    epochs = 50
+    epochs = 100
     scale_factor = 8.0
     learn_rate = 0.001
     train_data_path = "new_dataset/train"
@@ -33,8 +33,8 @@ def main():
     anchor_widths = [4, 8, 16, 32, 64, 128, 224]
     aspect_ratios = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]
     img_size = 224
-    batch_size = 32
-    num_workers = 0
+    batch_size = 64
+    num_workers = 4
 
     num_rows = int(img_size / scale_factor)
     num_cols = int(img_size / scale_factor)
@@ -54,7 +54,7 @@ def main():
         ("grayscale_brightness", [get_grayscale_transformation(), get_color_transformation(brightness=2.0)])
     ]
 
-    results = {}
+    benchmarks = {}
 
     for combinations in augmentation_combinations:
         name = combinations[0]
@@ -66,12 +66,12 @@ def main():
 
         augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
-
-        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate=False, augments=name)
+        
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate=True, augments=name)
         
         ap = get_average_precision(model, eval_loader, device, augments=name)
         
-        results[name] = ap
+        benchmarks[name] = ap
 
         # Free model and dataset from memory
         del model
@@ -80,7 +80,12 @@ def main():
         del optimizer
         torch.cuda.empty_cache()
         gc.collect()
-
+    
+    print(8*"-", "Benchmarks", 8*"-")
+    for name, ap in benchmarks.items():
+        print(f"Augmentation: {name.replace("_", " ").title()}")
+        print(f"Average precision: {ap}")
+        print(16*"-")
 
 def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate = False, augments = ""):
 
@@ -88,21 +93,24 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-    tensorboard_writer = get_tensorboard_writer(f"a7_training_{augments}_{timestamp}")
+    if evaluate:
+        tensorboard_writer = get_tensorboard_writer(f"a7_training_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
 
     try:
         for epoch in range(epochs):
-            curr_eval_epoch
+            curr_eval_epoch = epoch
             train_epoch(model, loader, loss_func, optimizer, device, negative_mining)
-            if evaluate:
+            # Save model's weights every 25 epochs
+            if (epoch+1) % 25 == 0:
+                torch.save(model.state_dict(), f"a7_e{epoch+1}_{augments}_{timestamp}.pth")
+            
+            # Evaluate model every 20 epochs
+            if evaluate and (epoch + 1) % 20 == 0:
                 ap = evaluate(model, loader, device, None, anchor_grid)
                 tensorboard_writer.add_scalar("Precision/Epoch", ap, epoch)
                 print(f"Precision on epoch {epoch}: {ap}")
-            # Save model's weights every 20 epochs
-            if (epoch+1) % 25 == 0:
-                torch.save(model.state_dict(), f"a7_e{epoch}_{timestamp}.pth")
     finally:
         tensorboard_writer.close() # Close writer even on failure
 
