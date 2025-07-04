@@ -67,7 +67,7 @@ def main():
         augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
         
-        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate=True, augments=name)
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=True, augments=name)
         
         ap = get_average_precision(model, eval_loader, device, augments=name)
         
@@ -87,13 +87,13 @@ def main():
         print(f"Average precision: {ap}")
         print(16*"-")
 
-def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate = False, augments = ""):
+def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate_training = False, augments = ""):
 
     global curr_eval_epoch
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-    if evaluate:
+    if evaluate_training:
         tensorboard_writer = get_tensorboard_writer(f"a7_training_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
@@ -107,7 +107,7 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
                 torch.save(model.state_dict(), f"a7_e{epoch+1}_{augments}_{timestamp}.pth")
             
             # Evaluate model every 20 epochs
-            if evaluate and (epoch + 1) % 20 == 0:
+            if evaluate_training and (epoch + 1) % 20 == 0:
                 ap = evaluate(model, loader, device, None, anchor_grid)
                 tensorboard_writer.add_scalar("Precision/Epoch", ap, epoch)
                 print(f"Precision on epoch {epoch}: {ap}")
