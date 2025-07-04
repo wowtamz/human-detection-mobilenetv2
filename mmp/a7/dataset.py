@@ -6,7 +6,6 @@ import os
 from torchvision.transforms.functional import to_pil_image
 from torch.utils.data import DataLoader
 from PIL import Image, ImageDraw
-from pathlib import Path
 
 from ..a3 import annotation
 from ..a4 import anchor_grid

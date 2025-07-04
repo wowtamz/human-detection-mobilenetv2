@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 from ..a3.annotation import AnnotationRect
 from ..a4.anchor_grid import get_anchor_grid
-from ..a4.dataset import get_dataloader, get_rescaled_annotation
+from ..a4.dataset import get_dataloader
 from ..a5.model import MmpNet
 from ..a5.main import get_criterion_optimizer, get_tensorboard_writer, train_epoch
 from .nms import non_maximum_suppression
@@ -86,7 +86,7 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             images, labels, ids = data
             
             inference = batch_inference(model, images, device, anchor_grid)
-            
+
             for j, img_id in enumerate(ids):
                 predicted_rect = loader.dataset.get_rescaled_annotation(img_id, inference[j]) # Rescale prediction rect to original size
                 dboxes[img_id] = predicted_rect
