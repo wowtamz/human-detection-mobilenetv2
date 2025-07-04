@@ -83,7 +83,7 @@ def main():
     
     print(8*"-", "Benchmarks", 8*"-")
     for name, ap in benchmarks.items():
-        print(f"Augmentation: {name.replace("_", " ").title()}")
+        print(f"Augmentation: {name.replace('_', ' ').title()}")
         print(f"Average precision: {ap}")
         print(16*"-")
 
