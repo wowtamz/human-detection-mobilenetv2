@@ -88,7 +88,8 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             inference = batch_inference(model, images, device, anchor_grid)
 
             for j, img_id in enumerate(ids):
-                predicted_rects = [loader.dataset.get_rescaled_annotation(img_id, rect) for rect in inference[j]]  # Rescale prediction rect to original size
+                rects = [tup[0] for tup in inference[j]] # Map list of tuples to list of AnnotationRects
+                predicted_rects = [loader.dataset.get_rescaled_annotation(img_id, rect) for rect in rects]  # Rescale prediction rect to original size
                 dboxes[img_id] = predicted_rects
                 gboxes[img_id] = gt_dict[img_id]
     
