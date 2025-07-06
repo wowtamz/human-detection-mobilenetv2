@@ -65,7 +65,7 @@ def main():
         
         model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
+        state_dict = torch.load(path, map_location=torch.device(device))
         model.load_state_dict(state_dict)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
         
