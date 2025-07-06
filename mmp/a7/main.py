@@ -55,6 +55,33 @@ def main():
 
     benchmarks = {}
 
+    # Evaluate AP of pretrained models
+    augmentation_combinations = [] # Comment this line out to allow training
+    model_paths = [
+
+    ]
+
+    for path in model_paths:
+        
+        model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        state_dict = torch.load("a5_sf8.0_lr0.02_testingmodel.pth", map_location=torch.device(device))
+        model.load_state_dict(state_dict)
+        eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
+        
+        ap = get_average_precision(model, eval_loader, device, augments=name)
+        
+        benchmarks[path] = ap
+
+         # Free model and dataset from memory
+        del model
+        del eval_loader
+        del state_dict
+        torch.cuda.empty_cache()
+        gc.collect()
+    
+    # Traing models with augmentation
+
     for combinations in augmentation_combinations:
         name = combinations[0]
         augments = combinations[1]
@@ -111,7 +138,8 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
                 tensorboard_writer.add_scalar("Precision/Epoch", ap, epoch)
                 print(f"Precision on epoch {epoch}: {ap}")
     finally:
-        tensorboard_writer.close() # Close writer even on failure
+        if evaluate_training:
+            tensorboard_writer.close() # Close writer even on failure
 
 def get_average_precision(model, loader, device, augments = ""):
 
