@@ -27,37 +27,43 @@ nms_threshold = 0.3
 def batch_inference(
     model: MmpNet, images: torch.Tensor, device: torch.device, anchor_grid: np.ndarray
 ) -> List[List[Tuple[AnnotationRect, float]]]:
-    
     global curr_eval_epoch
     global curr_eval_batch
     global nms_threshold
-
+    
     result = []
     images = images.to(device)
-
-    logits = model(images)
-    prediction = torch.softmax(logits, dim=1)
-
+    
+    with torch.no_grad():  # Disable gradients for inference speedup
+        logits = model(images)
+        prediction = torch.softmax(logits, dim=1)
+    
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
-       
+    
+    # Pre-compute constants outside the loop
+    human_channel = 1
     anchor_flat = anchor_grid.reshape(-1, 4)
+    
+    # Vectorized score extraction for entire batch
+    scores_batch = prediction[:, human_channel].reshape(batch_size, -1)
     
     for i in range(batch_size):
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
-        human_channel = 1
-        scores_flat = prediction[i, human_channel].reshape(-1)
-        t = 0.3
-
-        boxes_scores = []
-
-        for j, score in enumerate(scores_flat):
-            rect_array = anchor_flat[j]
-            rect = AnnotationRect.fromarray(rect_array)
-            boxes_scores.append((rect, score))
-
+        
+        # Get scores for current batch item
+        scores_flat = scores_batch[i]
+        
+        # Convert scores to numpy for faster list operations
+        scores_np = scores_flat.cpu().numpy() if scores_flat.is_cuda else scores_flat.numpy()
+        
+        # Vectorized box creation for all boxes
+        boxes_scores = [(AnnotationRect.fromarray(anchor_flat[j]), scores_np[j]) 
+                       for j in range(len(anchor_flat))]
+        
+        # Apply NMS
         filtered = non_maximum_suppression(boxes_scores, nms_threshold)
         result.append(filtered)
-
+    
     return result
 
 def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  # feel free to change the arguments
@@ -88,8 +94,7 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
             inference = batch_inference(model, images, device, anchor_grid)
 
             for j, img_id in enumerate(ids):
-                rects = [tup[0] for tup in inference[j]] # Map list of tuples to list of AnnotationRects
-                predicted_rects = [loader.dataset.get_rescaled_annotation(img_id, rect) for rect in rects]  # Rescale prediction rect to original size
+                predicted_rects = [(loader.dataset.get_rescaled_annotation(img_id, rect), score) for rect, score in inference[j]]  # Rescale prediction rect to original size
                 dboxes[img_id] = predicted_rects
                 gboxes[img_id] = gt_dict[img_id]
     
