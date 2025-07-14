@@ -1,6 +1,7 @@
 from typing import List, Tuple
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 from datetime import datetime
 from ..a3.annotation import AnnotationRect
@@ -101,9 +102,15 @@ def evaluate(model, loader, device, tensorboard_writer, anchor_grid) -> float:  
     ap, precision, recall = calculate_ap_pr(dboxes, gboxes)
 
     if tensorboard_writer:
-        for i, p in enumerate(precision):
-            r = recall[i]
-            tensorboard_writer.add_scalar("Precision/Recall", p, r)
+
+        plt.figure()
+        plt.plot(recall, precision, marker=".")
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.title("Precision-Recall Curve")
+
+        tensorboard_writer.add_figure("PR Curve", plt.gcf())
+        plt.close()
     
     return ap
 
