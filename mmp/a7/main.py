@@ -58,11 +58,15 @@ def main():
     # Evaluate AP of pretrained models
     augmentation_combinations = [] # Comment this line out to allow training
     model_paths = [
-
+        ("brightness_flip","a7_e100_brightness_flip_2025-07-06-01-37.pth"),
+        ("blur_rotated", "a7_e100_blur_rotated_2025-07-09-16-10.pth"),
+        ("grayscale_brightness", "a7_e100_grayscale_brightness_2025-07-09-22-40.pth"),
+        ("grayscale_rotated", "a7_e100_grayscale_rotated_2025-07-09-09-56.pth")
     ]
 
-    for path in model_paths:
-        
+    for tup in model_paths:
+        name = tup[0]
+        path = tup[1]
         model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         state_dict = torch.load(path, map_location=torch.device(device))
@@ -93,7 +97,7 @@ def main():
         augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
         
-        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=True, augments=name)
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, augments=name)
         
         ap = get_average_precision(model, eval_loader, device, augments=name)
         
@@ -131,12 +135,11 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
             # Save model's weights every 25 epochs
             if (epoch+1) % 25 == 0:
                 torch.save(model.state_dict(), f"a7_e{epoch+1}_{augments}_{timestamp}.pth")
-            
-            # Evaluate model every 20 epochs
-            if evaluate_training and (epoch + 1) % 20 == 0:
-                ap = evaluate(model, loader, device, None, anchor_grid)
-                tensorboard_writer.add_scalar("Precision/Epoch", ap, epoch)
-                print(f"Precision on epoch {epoch}: {ap}")
+            # Evaluate model every 25 epochs
+                if evaluate_training:
+                    ap = evaluate(model, loader, device, None, anchor_grid)
+                    tensorboard_writer.add_scalar("Precision/Epoch", ap, epoch)
+                    print(f"Precision on epoch {epoch}: {ap}")
     finally:
         if evaluate_training:
             tensorboard_writer.close() # Close writer even on failure
