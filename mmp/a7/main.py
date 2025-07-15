@@ -110,6 +110,38 @@ def main():
         del optimizer
         torch.cuda.empty_cache()
         gc.collect()
+
+    # Train one model with all augmentations
+    '''
+    benchmarks = {}
+    augmentation_combinations = [
+        ("brightness_flip", [get_color_transformation(brightness=1.0), get_horizontal_flip_transformation()]),
+        ("grayscale_rotated", [get_grayscale_transformation(), get_rotation_transformation(45)]),
+        ("blur_rotated", [get_blur_transformation(), get_rotation_transformation(45)]),
+        ("grayscale_brightness", [get_grayscale_transformation(), get_color_transformation(brightness=2.0)])
+    ]
+
+    model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    loss_func, optimizer = get_criterion_optimizer(model, learn_rate, device)
+
+    for augments in [
+        [],
+        [get_color_transformation(brightness=1.0), get_horizontal_flip_transformation()],
+        [get_grayscale_transformation(), get_rotation_transformation(45)],
+        [get_blur_transformation(), get_rotation_transformation(45)],
+        [get_grayscale_transformation(), get_color_transformation(brightness=2.0)],
+    ]:
+        augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, augments=name)
+
+        del augmented_training_loader
+        torch.cuda.empty_cache()
+        gc.collect()
+
+    ap = get_average_precision(model, eval_loader, device, augments=name)
+    benchmarks["All augments combined"] = ap
+    '''
     
     print(8*"-", "Benchmarks", 8*"-")
     for name, ap in benchmarks.items():
