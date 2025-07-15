@@ -15,34 +15,38 @@ def get_bbr_loss(
     @param groundtruths: Batch of ground truth data given as (x1, y1, x2, y2) (#data, 4)
     """
     
+    '''
     loss_offset_x = 0
     loss_offset_y = 0
     loss_scale_width = 0
     loss_scale_height = 0
 
-    for i, (anchor, out, gt) in enumerate(zip(anchor_boxes, adjustments, groundtruths)):
+    for anchor, adjustment, gt in zip(anchor_boxes, adjustments, groundtruths):
         
-        anchor_x1 = anchor[0]
-        anchor_y1 = anchor[1]
-        anchor_x2 = anchor[2]
-        anchor_y2 = anchor[3]
+        anchor_x1, anchor_y1, anchor_x2, anchor_y2 = anchor
+        offset_x, offset_y, scale_width, scale_height = adjustment
+        gt_x1, gt_y1, gt_x2, gt_y2 = gt
+
+        loss_offset_x += (offset_x - (gt_x1 - anchor_x1) / (anchor_x2 - anchor_x1)) ** 2
+        loss_offset_y += (offset_y - (gt_y1 - anchor_y1) / (anchor_y2 - anchor_y1)) ** 2
+        loss_scale_width += (scale_width - (abs(gt_x2 - gt_x1) / abs(anchor_x2 - anchor_x1))) ** 2
+        loss_scale_height += (scale_height - (abs(gt_y2 - gt_y1) / abs(anchor_y2 - anchor_y1))) ** 2
+    '''
+
+    # Vectorized code
+
+    ax1, ay1, ax2, ay2 = anchor_boxes[:, 0], anchor_boxes[:, 1], anchor_boxes[:, 2], anchor_boxes[:, 3]
+    offset_x, offset_y, scale_width, scale_height = adjustments[:, 0], adjustments[:, 1], adjustments[:, 2], adjustments[:, 3]
+    gx1, gy1, gx2, gy2 = groundtruths[:, 0], groundtruths[:, 1], groundtruths[:, 2], groundtruths[: 3]
+
+    loss_offset_x = (offset_x - (gx1 - ax1) / (ax2 - ax1)).pow(2)
+    loss_offset_y = (offset_y - (gy1 - ay1) / (ay2 - ay1)).pow(2)
+    loss_scale_width = (scale_width - (gx2 - gx1) / (ax2 - ax1)).pow(2)
+    loss_scale_height = (scale_height - (gy2 - gy1) / (ay2 - ay1)).pow(2)
+
+    bbr_loss = loss_offset_x + loss_offset_y + loss_scale_width + loss_scale_height
         
-        out_offset_x = out[0]
-        out_offset_y = out[1]
-        out_scale_width = out[2]
-        out_scale_height = out[3]
-
-        gt_x1 = gt[0]
-        gt_y1 = gt[1]
-        gt_x2 = gt[2]
-        gt_y2 = gt[3]
-
-        loss_offset_x += (out_offset_x - (gt_x1 - anchor_x1) / (anchor_x2 - anchor_x1)) ** 2
-        loss_offset_y += (out_offset_y - (gt_y1 - anchor_y1) / (anchor_y2 - anchor_y1)) ** 2
-        loss_scale_width = (out_scale_width - (abs(gt_x2 - gt_x1) / abs(anchor_x2 - anchor_x1))) ** 2
-        loss_scale_height = (out_scale_height - (abs(gt_y2 - gt_y1) / abs(anchor_y2 - anchor_y1))) ** 2
-
-    return loss_offset_x + loss_offset_y + loss_scale_width + loss_scale_height
+    return bbr_loss.sum()
 
 def apply_bbr(anchor_box: np.ndarray, adjustment: torch.Tensor) -> AnnotationRect:
     """Calculates an AnnotationRect based on a given anchor box and adjustments
@@ -67,6 +71,6 @@ def apply_bbr(anchor_box: np.ndarray, adjustment: torch.Tensor) -> AnnotationRec
     return AnnotationRect(
         new_x1,
         new_y1,
-        scale_width * (x2 - x1) + new_x1,
-        scale_height * (y2 - y1) + new_y1
+        new_x1 + scale_width * (x2 - x1),
+        new_y1 + scale_height * (y2 - y1)
     )
