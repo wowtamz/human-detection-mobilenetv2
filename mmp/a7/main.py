@@ -97,7 +97,7 @@ def main():
         augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
         
-        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, augments=name)
+        train(epochs, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, augments=name, tag="a7")
         
         ap = get_average_precision(model, eval_loader, device, augments=name)
         
@@ -144,14 +144,14 @@ def main():
         print(f"Average precision: {ap}")
         print(16*"-")
 
-def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate_training = False, augments = ""):
+def train(epochs, model, loss_func, optimizer, device, loader, negative_mining = True, evaluate_training = False, augments = "", tag=""):
 
     global curr_eval_epoch
 
-    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M")
 
     if evaluate_training:
-        tensorboard_writer = get_tensorboard_writer(f"a7_training_{augments}_{timestamp}")
+        tensorboard_writer = get_tensorboard_writer(f"{tag}_training_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
 
@@ -161,7 +161,7 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
             train_epoch(model, loader, loss_func, optimizer, device, negative_mining)
             # Save model's weights every 25 epochs
             if (epoch+1) % 25 == 0:
-                torch.save(model.state_dict(), f"a7_e{epoch+1}_{augments}_{timestamp}.pth")
+                torch.save(model.state_dict(), f"{tag}_e{epoch+1}_{augments}_{timestamp}.pth")
             # Evaluate model every 25 epochs
                 if evaluate_training:
                     ap = evaluate(model, loader, device, None, anchor_grid)
@@ -171,13 +171,13 @@ def train(epochs, model, loss_func, optimizer, device, loader, negative_mining =
         if evaluate_training:
             tensorboard_writer.close() # Close writer even on failure
 
-def get_average_precision(model, loader, device, augments = ""):
+def get_average_precision(model, loader, device, augments = "", tag="a7"):
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
     data_path = loader.dataset.path_to_data.removeprefix("new_dataset/").removesuffix("/")
 
-    tensorboard_writer = get_tensorboard_writer(f"a7_evaluate_dataset-{data_path}_{augments}_{timestamp}")
+    tensorboard_writer = get_tensorboard_writer(f"{tag}_evaluate_dataset-{data_path}_{augments}_{timestamp}")
 
     anchor_grid = loader.dataset.anchor_grid
     try:
