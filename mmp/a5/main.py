@@ -5,6 +5,7 @@ from datetime import datetime
 from .model import MmpNet
 from ..a4 import dataset
 from ..a4 import anchor_grid
+from ..a8.bbr import get_bbr_loss
 
 # Only import tensorboard if it is installed
 try:
@@ -14,13 +15,27 @@ except ImportError:
 
 curr_epoch = 0
 
+def get_anchor_boxes_from_prediction(anchor_grid, prediction):
+    
+    boxes = []
+    indices = torch.nonzero(prediction, as_tuple=False)
+
+    for idx in indices:
+        batch, 1, width, ratio, row, col = idx.tolist()
+        anchor_rect = anchor_grid[batch, 1, width, ratio, row, col]
+        boxes.append(anchor_rect)
+    
+    return torch.tensor(boxes)
+
 def step(
     model: MmpNet,
     criterion,
     optimizer: optim.Optimizer,
     img_batch: torch.Tensor,
     lbl_batch: torch.Tensor,
-    neg_mining: bool = False
+    neg_mining: bool = False,
+    anchor_grid = None,
+    groundtruths = None
 ) -> float:
     """Performs one update step for the model
 
@@ -29,7 +44,7 @@ def step(
 
     optimizer.zero_grad()
 
-    prediction = model(img_batch)
+    prediction, bbr_pred = model(img_batch)
     loss = criterion(prediction, lbl_batch.long())
         
     # Begin - Exercise 5.3
@@ -41,12 +56,19 @@ def step(
         loss = loss.mean()
     # End Ex. 5.3
 
+    loss = loss.item() # loss is a single element Tensor
+
+    if bbr_pred and anchor_grid and groundtruths:
+        anchor_boxes = get_anchor_boxes_from_prediction(anchor_grid, prediction)
+        bbr_loss = get_bbr_loss(anchor_boxes, bbr_pred, groundtruths)
+        loss = loss * bbr_loss
+
     #torch.autograd.set_detect_anomaly(True) # Enable anomaly detection
 
     loss.backward()
     optimizer.step()
 
-    return loss.item() # loss is a single element Tensor
+    return loss
 
 def get_tensorboard_writer(model_name):
     if SummaryWriter is not None:
@@ -103,14 +125,20 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device,
     model = model.to(device)
     model.train()
 
+    gt_dict = loader.dataset.get_annotation_dict()
+    anchor_grid = loader.dataset.anchor_grid
+
     for batch in loader:
 
         images, labels, ids = batch
 
         images = images.to(device)
         labels = labels.to(device)
+
+        groundtruths = None if not model.use_bbr else [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
+        tensor_groundtruths = None if not model.use_bbr else torch.tensor(groundtruths)
         
-        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining)
+        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining, anchor_grid, tensor_groundtruths)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
     curr_epoch += 1
@@ -127,6 +155,9 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
 
     progress = 0
 
+    gt_dict = loader.dataset.get_annotation_dict()
+    anchor_grid = loader.dataset.anchor_grid
+
     with torch.no_grad():
         for i, data in enumerate(loader):
             print(f"validating epoch {eval_epoch} | iter {progress}")
@@ -135,10 +166,20 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
             labels = labels.to(device)
             labels = labels.float()
 
-            prediction = model(images)
+            prediction, bbr_pred = model(images)
             loss = criterion(prediction, labels.long())
+            loss.item()
+
+            if bbr_pred:
+                groundtruths = [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
+                tensor_groundtruths = torch.tensor(groundtruths)
+
+                anchor_boxes = get_anchor_boxes_from_prediction(anchor_grid, prediction)
+                bbr_loss = get_bbr_loss(anchor_boxes, bbr_pred, tensor_groundtruths)
+                loss = loss * bbr_loss
+            
             total += images.shape[0]
-            total_loss += loss.item() * images.shape[0]
+            total_loss += loss * images.shape[0]
             correct += torch.sum(prediction == labels)
             progress += 1
 
