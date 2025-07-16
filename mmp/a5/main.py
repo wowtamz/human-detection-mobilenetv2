@@ -21,7 +21,7 @@ def get_anchor_boxes_from_prediction(anchor_grid, prediction):
     indices = torch.nonzero(prediction, as_tuple=False)
 
     for idx in indices:
-        batch, 1, width, ratio, row, col = idx.tolist()
+        batch, _channel, width, ratio, row, col = idx.tolist()
         anchor_rect = anchor_grid[batch, 1, width, ratio, row, col]
         boxes.append(anchor_rect)
     
