@@ -56,8 +56,6 @@ def step(
         loss = loss.mean()
     # End Ex. 5.3
 
-    loss = loss.item() # loss is a single element Tensor
-
     if bbr_pred and anchor_grid and groundtruths:
         anchor_boxes = get_anchor_boxes_from_prediction(anchor_grid, prediction)
         bbr_loss = get_bbr_loss(anchor_boxes, bbr_pred, groundtruths)
@@ -68,7 +66,7 @@ def step(
     loss.backward()
     optimizer.step()
 
-    return loss
+    return loss.item() # loss is a single element Tensor
 
 def get_tensorboard_writer(model_name):
     if SummaryWriter is not None:
@@ -168,7 +166,6 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
 
             prediction, bbr_pred = model(images)
             loss = criterion(prediction, labels.long())
-            loss.item()
 
             if bbr_pred:
                 groundtruths = [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
@@ -179,10 +176,10 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
                 loss = loss * bbr_loss
             
             total += images.shape[0]
-            total_loss += loss * images.shape[0]
+            total_loss += loss.item() * images.shape[0]
             correct += torch.sum(prediction == labels)
             progress += 1
-
+    
     loss = total_loss / total
     accuracy = correct / total
 

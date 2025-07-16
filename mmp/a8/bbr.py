@@ -37,7 +37,7 @@ def get_bbr_loss(
 
     ax1, ay1, ax2, ay2 = anchor_boxes[:, 0], anchor_boxes[:, 1], anchor_boxes[:, 2], anchor_boxes[:, 3]
     offset_x, offset_y, scale_width, scale_height = adjustments[:, 0], adjustments[:, 1], adjustments[:, 2], adjustments[:, 3]
-    gx1, gy1, gx2, gy2 = groundtruths[:, 0], groundtruths[:, 1], groundtruths[:, 2], groundtruths[: 3]
+    gx1, gy1, gx2, gy2 = groundtruths[:, 0], groundtruths[:, 1], groundtruths[:, 2], groundtruths[:, 3]
 
     loss_offset_x = (offset_x - (gx1 - ax1) / (ax2 - ax1)).pow(2)
     loss_offset_y = (offset_y - (gy1 - ay1) / (ay2 - ay1)).pow(2)
@@ -45,7 +45,7 @@ def get_bbr_loss(
     loss_scale_height = (scale_height - (gy2 - gy1) / (ay2 - ay1)).pow(2)
 
     bbr_loss = loss_offset_x + loss_offset_y + loss_scale_width + loss_scale_height
-        
+    
     return bbr_loss.sum()
 
 def apply_bbr(anchor_box: np.ndarray, adjustment: torch.Tensor) -> AnnotationRect:
