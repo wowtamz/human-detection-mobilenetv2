@@ -113,14 +113,9 @@ def main():
 
     # Train one model with all augmentations
     '''
+    epochs = 50
     benchmarks = {}
-    augmentation_combinations = [
-        ("brightness_flip", [get_color_transformation(brightness=1.0), get_horizontal_flip_transformation()]),
-        ("grayscale_rotated", [get_grayscale_transformation(), get_rotation_transformation(45)]),
-        ("blur_rotated", [get_blur_transformation(), get_rotation_transformation(45)]),
-        ("grayscale_brightness", [get_grayscale_transformation(), get_color_transformation(brightness=2.0)])
-    ]
-
+    name = "all_augs_combined"
     model = MmpNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     loss_func, optimizer = get_criterion_optimizer(model, learn_rate, device)
@@ -138,11 +133,11 @@ def main():
         del augmented_training_loader
         torch.cuda.empty_cache()
         gc.collect()
-
-    ap = get_average_precision(model, eval_loader, device, augments=name)
-    benchmarks["All augments combined"] = ap
-    '''
     
+    eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
+    ap = get_average_precision(model, eval_loader, device, augments=name)
+    benchmarks[name] = ap
+    '''
     print(8*"-", "Benchmarks", 8*"-")
     for name, ap in benchmarks.items():
         print(f"Augmentation: {name.replace('_', ' ').title()}")
