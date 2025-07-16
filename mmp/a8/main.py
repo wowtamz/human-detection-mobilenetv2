@@ -64,7 +64,7 @@ def main():
         training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False)
         eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
         
-        train(epochs, model, loss_func, optimizer, device, training_loader, use_negative_mining, evaluate_training=False, augments=name, tag=tag)
+        train(epochs, model, loss_func, optimizer, device, training_loader, use_negative_mining, evaluate_training=False, tag=tag)
         
         ap = get_average_precision(model, eval_loader, device, augments="no_augs", tag=tag)
 
@@ -101,7 +101,7 @@ def main():
             augmented_training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, False, augmentations=augments)
             eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
             
-            train(epochs_per_round, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, augments=name)
+            train(epochs_per_round, model, loss_func, optimizer, device, augmented_training_loader, use_negative_mining, evaluate_training=False, tag="performance_tuning")
 
             # Free model and dataset from memory
             del augmented_training_loader
