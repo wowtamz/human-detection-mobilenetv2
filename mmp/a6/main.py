@@ -9,6 +9,7 @@ from ..a4.anchor_grid import get_anchor_grid
 from ..a4.dataset import get_dataloader
 from ..a5.model import MmpNet
 from ..a5.main import get_criterion_optimizer, get_tensorboard_writer, train_epoch
+from ..a8.bbr import apply_bbr
 from .nms import non_maximum_suppression
 from .evallib import calculate_ap_pr
 
@@ -36,7 +37,7 @@ def batch_inference(
     images = images.to(device)
     
     with torch.no_grad():  # Disable gradients for inference speedup
-        logits = model(images)
+        logits, bbr = model(images)
         prediction = torch.softmax(logits, dim=1)
     
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
@@ -47,18 +48,25 @@ def batch_inference(
     
     # Vectorized score extraction for entire batch
     scores_batch = prediction[:, human_channel].reshape(batch_size, -1)
+
+    # Vectorized bbr adjustments extraction for entire batch
+    bbr_batch = bbr[:, :].reshape(batch_size, -1) if bbr else None
     
     for i in range(batch_size):
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
         
         # Get scores for current batch item
         scores_flat = scores_batch[i]
+
+        # TODO: Check if bbr_flat is correctly implemented
+        # Get bounding box regression adjustments for current batch item
+        bbr_flat = bbr_batch[i] if bbr else None
         
         # Convert scores to numpy for faster list operations
         scores_np = scores_flat.cpu().numpy() if scores_flat.is_cuda else scores_flat.numpy()
         
         # Vectorized box creation for all boxes
-        boxes_scores = [(AnnotationRect.fromarray(anchor_flat[j]), scores_np[j]) 
+        boxes_scores = [(apply_bbr(anchor_flat[j], bbr_flat[j]) if bbr else AnnotationRect.fromarray(anchor_flat[j]), scores_np[j]) 
                        for j in range(len(anchor_flat))]
         
         # Apply NMS
