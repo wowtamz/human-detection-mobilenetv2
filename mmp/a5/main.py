@@ -1,9 +1,12 @@
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from datetime import datetime
 from .model import MmpNet
+from ..a3.annotation import AnnotationRect
 from ..a4 import dataset
+from ..a4.label_grid import iou
 from ..a4 import anchor_grid
 from ..a8.bbr import get_bbr_loss
 
@@ -15,17 +18,46 @@ except ImportError:
 
 curr_epoch = 0
 
-def get_anchor_boxes_from_prediction(anchor_grid, prediction):
-    
-    boxes = []
-    indices = torch.nonzero(prediction, as_tuple=False)
+def get_preprocessed_bbr_data(labels, anchor_grid, bbr_pred, groundtruths):
 
-    for idx in indices:
-        batch, _channel, width, ratio, row, col = idx.tolist()
-        anchor_rect = anchor_grid[batch, 1, width, ratio, row, col]
-        boxes.append(anchor_rect)
-    
-    return torch.tensor(boxes)
+    bbr_pred = bbr_pred.cpu()
+    labels = labels.cpu()
+    batch_size = labels.shape[0]
+    anchor_boxes = np.stack([anchor_grid] * batch_size)
+    #anchor_boxes_masked = [ab[mask == True] for ab, mask in zip(anchor_boxes, labels)]
+    #bbr_pred_masked = [bbr[mask == True] for bbr, mask in zip(bbr_pred, labels)] #bbr_pred[labels == True]
+    #anchor_boxes_flat = anchor_boxes[labels == True]
+
+    matched_gts = []
+    matched_anchor_boxes = []
+    matched_adjustments = []
+
+    # This will keep the batch dimension (result is a list of tensors with varying shapes)
+
+    for i in range(batch_size):
+        gts = groundtruths[i]
+        #aboxes = anchor_boxes_masked[i]
+        #bbr_adjs = bbr_pred_masked[i]
+
+        aboxes = anchor_boxes[i][labels[i] == True]
+        bbr_adjs = bbr_pred[i][labels[i] == True]
+
+        for gt in gts:
+            max_iou = 0.0
+            index = -1
+            for j in range(aboxes.shape[0]):
+                gt_rect = AnnotationRect.fromarray(gt)
+                anchor_rect = AnnotationRect.fromarray(aboxes[j])
+                _iou = iou(gt_rect, anchor_rect)
+                if _iou > max_iou:
+                    max_iou = _iou
+                    index = j
+            if index >= 0:
+                matched_gts.append(torch.tensor(gt.__array__()))
+                matched_anchor_boxes.append(torch.tensor(aboxes[index]))
+                matched_adjustments.append(bbr_adjs[index])
+
+    return torch.stack(matched_gts), torch.stack(matched_anchor_boxes), torch.stack(matched_adjustments)
 
 def step(
     model: MmpNet,
@@ -46,6 +78,8 @@ def step(
 
     prediction, bbr_pred = model(img_batch)
     loss = criterion(prediction, lbl_batch.long())
+
+    batch_size, _, _, _, _, _ = prediction.shape
         
     # Begin - Exercise 5.3
     if neg_mining:
@@ -56,12 +90,10 @@ def step(
         loss = loss.mean()
     # End Ex. 5.3
 
-    if bbr_pred and anchor_grid and groundtruths:
-        anchor_boxes = get_anchor_boxes_from_prediction(anchor_grid, prediction)
-        bbr_loss = get_bbr_loss(anchor_boxes, bbr_pred, groundtruths)
+    if model.use_bbr and bbr_pred != None and anchor_grid.any() and groundtruths != None:
+        anchor_boxes_flat, bbr_pred_flat, groundtruths_flat = get_preprocessed_bbr_data(lbl_batch, anchor_grid, bbr_pred, groundtruths)
+        bbr_loss = get_bbr_loss(anchor_boxes_flat, bbr_pred_flat, groundtruths_flat)
         loss = loss * bbr_loss
-
-    #torch.autograd.set_detect_anomaly(True) # Enable anomaly detection
 
     loss.backward()
     optimizer.step()
@@ -74,6 +106,7 @@ def get_tensorboard_writer(model_name):
         tensorboard_writer = SummaryWriter(log_dir=f"tensorboard_logs/{model_name}_{current_time}")
         return tensorboard_writer
     else:
+
         print("Tensorboard SummaryWriter is not available!")
 
 def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Tensor:
@@ -134,9 +167,8 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device,
         labels = labels.to(device)
 
         groundtruths = None if not model.use_bbr else [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
-        tensor_groundtruths = None if not model.use_bbr else torch.tensor(groundtruths)
         
-        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining, anchor_grid, tensor_groundtruths)
+        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining, anchor_grid, groundtruths)
         print(f"e:{curr_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
     curr_epoch += 1
@@ -167,7 +199,7 @@ def eval_epoch(eval_epoch, model, loader: dataset.DataLoader, device: torch.devi
             prediction, bbr_pred = model(images)
             loss = criterion(prediction, labels.long())
 
-            if bbr_pred:
+            if model.use_bbr:
                 groundtruths = [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
                 tensor_groundtruths = torch.tensor(groundtruths)
 
