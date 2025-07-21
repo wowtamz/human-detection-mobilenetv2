@@ -38,7 +38,7 @@ class MmpNet(torch.nn.Module):
         
         if self.use_bbr:
             bbr_output = self.bbr_layers(features)
-            bbr_output = bbr_output.view(batch_size, 4, self.num_widths, self.num_aspect_ratios, self.rows, self.cols)
+            bbr_output = bbr_output.view(batch_size, self.num_widths, self.num_aspect_ratios, self.rows, self.cols, 4)
         else:
             bbr_output = None
 
