@@ -14,39 +14,28 @@ def get_bbr_loss(
     @param adjustments: Batch of adjustments of the prediction (#data, 4)
     @param groundtruths: Batch of ground truth data given as (x1, y1, x2, y2) (#data, 4)
     """
-    
-    '''
-    loss_offset_x = 0
-    loss_offset_y = 0
-    loss_scale_width = 0
-    loss_scale_height = 0
 
-    for anchor, adjustment, gt in zip(anchor_boxes, adjustments, groundtruths):
-        
-        anchor_x1, anchor_y1, anchor_x2, anchor_y2 = anchor
-        offset_x, offset_y, scale_width, scale_height = adjustment
-        gt_x1, gt_y1, gt_x2, gt_y2 = gt
+    # Normalize values for better loss computation
 
-        loss_offset_x += (offset_x - (gt_x1 - anchor_x1) / (anchor_x2 - anchor_x1)) ** 2
-        loss_offset_y += (offset_y - (gt_y1 - anchor_y1) / (anchor_y2 - anchor_y1)) ** 2
-        loss_scale_width += (scale_width - (abs(gt_x2 - gt_x1) / abs(anchor_x2 - anchor_x1))) ** 2
-        loss_scale_height += (scale_height - (abs(gt_y2 - gt_y1) / abs(anchor_y2 - anchor_y1))) ** 2
-    '''
-
-    # Vectorized code
+    image_size = 224.0
+    anchor_boxes = anchor_boxes.float() / image_size
+    groundtruths = groundtruths.float() / image_size
+    adjustments = adjustments.float() / image_size
 
     ax1, ay1, ax2, ay2 = anchor_boxes[:, 0], anchor_boxes[:, 1], anchor_boxes[:, 2], anchor_boxes[:, 3]
     offset_x, offset_y, scale_width, scale_height = adjustments[:, 0], adjustments[:, 1], adjustments[:, 2], adjustments[:, 3]
     gx1, gy1, gx2, gy2 = groundtruths[:, 0], groundtruths[:, 1], groundtruths[:, 2], groundtruths[:, 3]
 
-    loss_offset_x = (offset_x - (gx1 - ax1) / (ax2 - ax1)).pow(2)
-    loss_offset_y = (offset_y - (gy1 - ay1) / (ay2 - ay1)).pow(2)
-    loss_scale_width = (scale_width - (gx2 - gx1) / (ax2 - ax1)).pow(2)
-    loss_scale_height = (scale_height - (gy2 - gy1) / (ay2 - ay1)).pow(2)
+    eps = 1e-6
+
+    loss_offset_x = (offset_x - (gx1 - ax1) / (ax2 - ax1).clamp(min=eps)).pow(2)
+    loss_offset_y = (offset_y - (gy1 - ay1) / (ay2 - ay1).clamp(min=eps)).pow(2)
+    loss_scale_width = (scale_width - (gx2 - gx1) / (ax2 - ax1).clamp(min=eps)).pow(2)
+    loss_scale_height = (scale_height - (gy2 - gy1) / (ay2 - ay1).clamp(min=eps)).pow(2)
 
     bbr_loss = loss_offset_x + loss_offset_y + loss_scale_width + loss_scale_height
-    
-    return bbr_loss.sum()
+
+    return bbr_loss.mean()
 
 def apply_bbr(anchor_box: np.ndarray, adjustment: torch.Tensor) -> AnnotationRect:
     """Calculates an AnnotationRect based on a given anchor box and adjustments
