@@ -58,8 +58,8 @@ def apply_bbr(anchor_box: np.ndarray, adjustment: torch.Tensor) -> AnnotationRec
     new_y1 = y1 + offset_y * (y2 - y1)
 
     return AnnotationRect(
-        new_x1,
-        new_y1,
-        new_x1 + scale_width * (x2 - x1),
-        new_y1 + scale_height * (y2 - y1)
+        float(new_x1),
+        float(new_y1),
+        float(new_x1 + scale_width * (x2 - x1)),
+        float(new_y1 + scale_height * (y2 - y1))
     )
