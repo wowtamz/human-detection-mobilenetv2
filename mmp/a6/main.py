@@ -43,14 +43,16 @@ def batch_inference(
     batch_size, channels, widths, ratios, rows, cols = prediction.shape
     
     # Pre-compute constants outside the loop
-    human_channel = 1
     anchor_flat = anchor_grid.reshape(-1, 4)
     
     # Vectorized score extraction for entire batch
+    human_channel = 1
     scores_batch = prediction[:, human_channel].reshape(batch_size, -1)
 
     # Vectorized bbr adjustments extraction for entire batch
-    bbr_batch = bbr[:, :].reshape(batch_size, -1) if bbr else None
+    bbr_batch = bbr.reshape(batch_size, -1, 4) if model.use_bbr else None
+
+    #quit()
     
     for i in range(batch_size):
         print(f"batch inference e:{curr_eval_epoch}/b:{curr_eval_batch}/img:{i}")
@@ -60,14 +62,23 @@ def batch_inference(
 
         # TODO: Check if bbr_flat is correctly implemented
         # Get bounding box regression adjustments for current batch item
-        bbr_flat = bbr_batch[i] if bbr else None
+        bbr_flat = bbr_batch[i] if model.use_bbr else None
         
         # Convert scores to numpy for faster list operations
         scores_np = scores_flat.cpu().numpy() if scores_flat.is_cuda else scores_flat.numpy()
         
-        # Vectorized box creation for all boxes
-        boxes_scores = [(apply_bbr(anchor_flat[j], bbr_flat[j]) if bbr else AnnotationRect.fromarray(anchor_flat[j]), scores_np[j]) 
-                       for j in range(len(anchor_flat))]
+        if model.use_bbr:
+            boxes_scores = [
+                (apply_bbr(anchor_box, bbr_adj), score)
+                for anchor_box, score, bbr_adj in zip(anchor_flat, scores_np, bbr_flat)
+            ]
+            score_threshold = 0.05 
+            boxes_scores = [bs for bs in boxes_scores if bs[1] > score_threshold] # Filter scores to speed up nms
+        else:
+            boxes_scores = [
+                (AnnotationRect.fromarray(anchor_box), score)
+                for anchor_box, score in zip(anchor_flat, scores_np)
+            ]
         
         # Apply NMS
         filtered = non_maximum_suppression(boxes_scores, nms_threshold)
@@ -135,6 +146,8 @@ def evaluate_test(model, data_loader, device, anchor_grid, timestamp):  # feel f
     model.eval()
 
     count = 0
+
+    dataset = data_loader.dataset
     
     for batch in data_loader:
         images, labels, ids = batch
@@ -148,14 +161,14 @@ def evaluate_test(model, data_loader, device, anchor_grid, timestamp):  # feel f
 
             for box_score in prediction:
                 rect = box_score[0]
+                
                 score = box_score[1]
-                lines.append(f"{img_id} {int(rect.x1)} {int(rect.y1)} {int(rect.x2)} {int(rect.y2)} {score}\n")
+                lines.append(f"{img_id} {int(rect.x1)} {int(rect.y1)} {int(rect.x2)} {int(rect.y2)} {score:.14f}\n")
         
         count += 1
         
     with open(f"mmp/a6/eval_{timestamp}.txt", "w") as f:
         f.writelines(lines)
-        f.close()
 
 def main():
     """Put the surrounding training code here. The code will probably look very similar to last assignment"""
