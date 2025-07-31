@@ -50,11 +50,15 @@ class MMP_Dataset(torch.utils.data.Dataset):
                 dictionary[key] = []
         return dictionary
     
-    def get_rescaled_annotation(self, img_id, rect: annotation.AnnotationRect):
+    def get_img_scale(self, img_id) -> float:
         img_path = self.get_image_path(img_id)
         img = Image.open(img_path)
         width, height = img.size
         scale = self.image_size / max(width, height)
+        return scale
+    
+    def get_rescaled_annotation(self, img_id, rect: annotation.AnnotationRect):
+        scale = self.get_img_scale(img_id)
         return rect.rescaled(scale)
 
     def get_image_id(self, image_path):
