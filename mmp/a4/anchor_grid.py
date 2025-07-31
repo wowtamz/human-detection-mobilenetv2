@@ -22,10 +22,10 @@ def get_anchor_grid(
                     ratio = aspect_ratios[ratio_idx]
                     height = ratio * width
                     
-                    box_x1 = center_x - (width / 2)
-                    box_y1 = center_y - (height / 2)
-                    box_x2 = center_x + (width / 2)
-                    box_y2 = center_y + (height / 2)
+                    box_x1 = max(0.0, center_x - (width / 2))
+                    box_y1 = max(0.0, center_y - (height / 2))
+                    box_x2 = min(224.0, center_x + (width / 2))
+                    box_y2 = min(224.0, center_y + (height / 2))
 
                     grid[width_idx, ratio_idx, row, col] = [box_x1, box_y1, box_x2, box_y2]
     return grid
