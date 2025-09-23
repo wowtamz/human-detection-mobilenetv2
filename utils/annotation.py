@@ -63,10 +63,10 @@ class AnnotationRect:
         y_coords = rotated[:, 1]
 
         return AnnotationRect(
-            x_coords.min(),
-            y_coords.min(),
-            x_coords.max(),
-            y_coords.max()
+            x_coords.min() if x_coords.min() >= 0 else 0,
+            y_coords.min() if y_coords.min() >= 0 else 0,
+            x_coords.max() if x_coords.max() <= img_size else img_size,
+            y_coords.max() if y_coords.max() <= img_size else img_size
         )
 
     def __array__(self) -> np.ndarray:
