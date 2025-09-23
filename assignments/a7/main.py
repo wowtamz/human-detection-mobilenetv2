@@ -183,7 +183,8 @@ def get_average_precision(model, loader, device, augments = "", tag="a7"):
     try:
         ap = evaluate(model, loader, device, tensorboard_writer, anchor_grid)
     finally:
-        tensorboard_writer.close()
+        if tensorboard_writer:
+            tensorboard_writer.close()
     return ap
 
 if __name__ == "__main__":
