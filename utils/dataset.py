@@ -8,6 +8,7 @@ from PIL import Image
 
 from . import annotation
 from utils import label_grid
+from utils.transforms import get_transforms, apply_transforms_to_annotations, apply_transforms_to_img
 
 
 class MMP_Dataset(torch.utils.data.Dataset):
@@ -63,6 +64,9 @@ class MMP_Dataset(torch.utils.data.Dataset):
     
     def get_image_path(self, image_id):
         return self.path_to_data + f"{image_id}.jpg"
+    
+    def get_img_annotations(self, img_id) -> list:
+        return self.annotation_dict[img_id]
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         """
@@ -71,64 +75,31 @@ class MMP_Dataset(torch.utils.data.Dataset):
         img_path = self.image_paths[idx]
         img_id = self.get_image_id(img_path)
         img = Image.open(img_path)
-        width, height = img.size
-        size_delta = abs(height - width)
-        pad_x = size_delta if height > width else 0
-        pad_y = size_delta if height < width else 0
-        padding = (0, 0, pad_x, pad_y)
 
-        scale = self.image_size / max(width, height)
+        scale, padding = get_scale_and_padding(img, self.image_size)
 
-        annotations_scaled = list(
-            map(lambda a: a.scaled(scale), self.annotation_dict[img_id])
-        )
+        transforms = get_transforms(self.image_size, padding, self.augmentations)
+        img_tensor = apply_transforms_to_img(img, transforms)
 
-        def_transforms = [
-            torchvision.transforms.Pad(padding, 0, "constant"),
-            torchvision.transforms.Resize((self.image_size, self.image_size)),
-            # Augmentations added here
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]
-
-        for augmentation in self.augmentations:
-            if isinstance(augmentation, torchvision.transforms.RandomHorizontalFlip):
-                for rect in annotations_scaled:
-                    rect.flip_horizontal(self.image_size)
-
-            if isinstance(augmentation, torchvision.transforms.RandomRotation):
-                rotate_degrees = augmentation.degrees[0]
-                annotations_scaled = [rect.rotate(rotate_degrees, self.image_size) for rect in annotations_scaled]
-            
-            def_transforms.insert(2, augmentation)
-            
-        self.annotation_dict[img_id] = annotations_scaled
+        self.annotation_dict[img_id] = apply_transforms_to_annotations(self.annotation_dict[img_id], scale, transforms, self.image_size)
+        annotations = self.get_img_annotations(img_id)
         
-        tfm = torchvision.transforms.Compose(def_transforms)
-        img_tensor = tfm(img)
-        l_grid = torch.Tensor() if len(annotations_scaled) == 0 else label_grid.get_label_grid(self.anchor_grid, annotations_scaled, self.min_iou)
+
+        l_grid = torch.Tensor() if len(annotations) == 0 else label_grid.get_label_grid(self.anchor_grid, annotations, self.min_iou)
 
         return (img_tensor, l_grid, img_id)
 
     def __len__(self) -> int:
         return len(self.image_paths)
 
-# Color space transformations
-def get_color_transformation(brightness=0.0, contrast=0.0, saturation=0.0):
-    return torchvision.transforms.ColorJitter(brightness=brightness, contrast=contrast, saturation=saturation)
-
-def get_grayscale_transformation():
-    return torchvision.transforms.Grayscale(num_output_channels=3)
-
-def get_blur_transformation(kernel_size=(5, 5), sigma=(0.1, 5.0)):
-    return torchvision.transforms.GaussianBlur(kernel_size, sigma)
-
-# Geometric transformations
-def get_horizontal_flip_transformation():
-    return torchvision.transforms.RandomHorizontalFlip(1.0)
-
-def get_rotation_transformation(degrees=45.0):
-    return torchvision.transforms.RandomRotation((degrees, degrees))
+def get_scale_and_padding(img, size):
+    width, height = img.size
+    size_delta = abs(height - width)
+    pad_x = size_delta if height > width else 0
+    pad_y = size_delta if height < width else 0
+    padding = (0, 0, pad_x, pad_y)
+    scale = size / max(width, height)
+    return scale, padding
 
 def get_dataloader(
     path_to_data: str,
@@ -136,11 +107,10 @@ def get_dataloader(
     batch_size: int,
     num_workers: int,
     anchor_grid: np.ndarray,
+    min_iou: float,
     is_test: bool,
     augmentations: list = []
 ) -> DataLoader:
-
-    min_iou = 0.7
     
     dataset = MMP_Dataset(path_to_data, image_size, anchor_grid, min_iou, is_test=is_test, augmentations=augmentations)
 

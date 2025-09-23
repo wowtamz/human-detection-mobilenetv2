@@ -5,6 +5,23 @@ from typing import Tuple
 from PIL import Image
 from utils.annotation import AnnotationRect
 
+# Color space transformations
+def get_color_augment(brightness=0.0, contrast=0.0, saturation=0.0):
+    return torchvision.transforms.ColorJitter(brightness=brightness, contrast=contrast, saturation=saturation)
+
+def get_grayscale_augment():
+    return torchvision.transforms.Grayscale(num_output_channels=3)
+
+def get_blur_augment(kernel_size=(5, 5), sigma=(0.1, 5.0)):
+    return torchvision.transforms.GaussianBlur(kernel_size, sigma)
+
+# Geometric transformations
+def get_horizontal_flip_augment():
+    return torchvision.transforms.RandomHorizontalFlip(1.0)
+
+def get_rotation_augment(degrees=45.0):
+    return torchvision.transforms.RandomRotation((degrees, degrees))
+
 def apply_transforms_to_img(img: Image, transforms: list) -> torch.Tensor:
     compose = torchvision.transforms.Compose(transforms)
     tensor_img = compose(img)
