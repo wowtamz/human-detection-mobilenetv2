@@ -1,5 +1,6 @@
 import torch
 import gc
+import random
 
 from datetime import datetime
 from ..a4.anchor_grid import get_anchor_grid
@@ -232,6 +233,7 @@ def run_experiment(exp_name, augment_list, total_epochs, rounds=1, randomize=Fal
     torch.save(model.state_dict(), f"exp_{exp_name}_{timestamp}.pth")
     eval_loader = get_dataloader(eval_data_path, img_size, 1, num_workers, anchor_grid, True)
     ap = get_average_precision(model, eval_loader, device, augments="performance_tuning", tag=f"exp_{exp_name}_e{total_epochs}")
+    tag = f"{exp_name}_{"bbr" if using_bbr else ""}_e{total_epochs}"
     evaluate_experiment(tag, model, eval_loader, device, anchor_grid, timestamp)
     benchmarks[f"exp_{exp_name}"] = ap
 
