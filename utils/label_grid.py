@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Tuple
 from utils.annotation import AnnotationRect
 import numpy as np
 
@@ -52,14 +52,15 @@ def get_matching_rects(anch_grid, label_grid):
                         rects.append(rect)
     return rects
 
-def get_pred_rects(anch_grid, label_grid, detection_threshold = 0.5) -> list[AnnotationRect]:
-    rects = []
+def get_pred_rects_scores(anch_grid, label_grid, detection_threshold = 0.5) -> list[Tuple[AnnotationRect, float]]:
+    rects_scores = []
     sizes, ratios, rows, cols, _ = anch_grid.shape
     for size in range(sizes):
         for ratio in range(ratios):
             for row in range(rows):
                 for col in range(cols):
-                    if label_grid[size, ratio, row, col] >= detection_threshold:
+                    score = label_grid[size, ratio, row, col]
+                    if score >= detection_threshold:
                         rect = AnnotationRect.fromarray(anch_grid[size, ratio, row, col])
-                        rects.append(rect)
-    return rects
+                        rects_scores.append((rect, score))
+    return rects_scores
