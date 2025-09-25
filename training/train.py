@@ -62,10 +62,12 @@ def step(
     loss = criterion(prediction, lbl_batch.long())
     
     if neg_mining:
-        mask = get_random_sampling_mask(lbl_batch, 0.1)
+        mask = get_random_sampling_mask(lbl_batch, 5.0)
+        
         filtered_loss = loss * mask
         loss = filtered_loss.sum() / (mask.sum() + 1e-8) # Prevent division by zero
     else:
+        #loss = focal_loss(prediction, lbl_batch.long())
         loss = loss.mean()
 
     if hasattr(model, "use_bbr") and model.use_bbr and bbr_pred != None and anchor_grid.any() and groundtruths != None:
@@ -77,6 +79,14 @@ def step(
     optimizer.step()
 
     return loss.item() # loss is a single element Tensor
+
+def focal_loss(logits, targets, alpha=0.25, gamma=2.0):
+    C = logits.size(1)
+    target_one_hot = torch.nn.functional.one_hot(targets, num_classes=C)
+    target_one_hot = target_one_hot.permute(0, -1, *range(1, targets.ndim)).float()
+    bce = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_one_hot, reduction="none")
+    pt = torch.exp(-bce)
+    return (alpha * (1 - pt) ** gamma * bce).mean()
 
 def get_random_sampling_mask(labels: torch.Tensor, neg_ratio: float) -> torch.Tensor:
     """
@@ -147,9 +157,7 @@ def get_preprocessed_bbr_data(labels, anchor_grid, bbr_pred, groundtruths):
 
 
 def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002, device = None):
-    weights = torch.tensor([0.1, 0.9])
-    weights = weights.to(device) if device else weights
-    error_func = nn.CrossEntropyLoss(reduction="none", weight=weights)
+    error_func = nn.CrossEntropyLoss(reduction="none")
 
     optimizer = optim.Adam(model.parameters(), lr=learn_rate)
     return (error_func, optimizer)
