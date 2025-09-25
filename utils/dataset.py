@@ -65,7 +65,7 @@ class MMP_Dataset(torch.utils.data.Dataset):
     def get_image_path(self, image_id):
         return self.path_to_data + f"{image_id}.jpg"
     
-    def get_img_annotations(self, img_id) -> list:
+    def get_annotations(self, img_id) -> list:
         return self.annotation_dict[img_id]
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
@@ -81,9 +81,8 @@ class MMP_Dataset(torch.utils.data.Dataset):
         transforms = get_transforms(self.image_size, padding, self.augmentations)
         img_tensor = apply_transforms_to_img(img, transforms)
 
-        self.annotation_dict[img_id] = apply_transforms_to_annotations(self.annotation_dict[img_id], scale, transforms, self.image_size)
-        annotations = self.get_img_annotations(img_id)
-        
+        annotations = self.get_annotations(img_id)
+        annotations = apply_transforms_to_annotations(annotations, scale, transforms, self.image_size)
 
         l_grid = torch.Tensor() if len(annotations) == 0 else label_grid.get_label_grid(self.anchor_grid, annotations, self.min_iou)
 
