@@ -72,8 +72,9 @@ def step(
 
     if isinstance(model, BBRNet) and anchor_grid.any() and groundtruths != None:
         anchor_boxes_flat, bbr_pred_flat, groundtruths_flat = get_preprocessed_bbr_data(lbl_batch, anchor_grid, bbr_pred, groundtruths)
-        bbr_loss = get_bbr_loss(anchor_boxes_flat, bbr_pred_flat, groundtruths_flat)
-        loss = loss * bbr_loss
+        if anchor_boxes_flat is not None:
+            bbr_loss = get_bbr_loss(anchor_boxes_flat, bbr_pred_flat, groundtruths_flat)
+            loss = loss * bbr_loss
 
     loss.backward()
     optimizer.step()
@@ -152,8 +153,14 @@ def get_preprocessed_bbr_data(labels, anchor_grid, bbr_pred, groundtruths):
                 matched_gts.append(torch.tensor(gt.__array__()))
                 matched_anchor_boxes.append(torch.tensor(aboxes[index]))
                 matched_adjustments.append(bbr_adjs[index])
+    
+    if not matched_gts:
+        print("WARNING: No matching ground truths found for BBR in this batch!")
 
-    return torch.stack(matched_gts), torch.stack(matched_anchor_boxes), torch.stack(matched_adjustments)
+    if matched_gts:
+        return torch.stack(matched_gts), torch.stack(matched_anchor_boxes), torch.stack(matched_adjustments)
+    
+    return None, None, None
 
 
 def get_criterion_optimizer(model: nn.Module, learn_rate = 0.002, device = None):
