@@ -4,6 +4,33 @@ import torchvision
 from typing import Tuple
 from PIL import Image
 from utils.annotation import AnnotationRect
+from torchvision.transforms.functional import to_pil_image
+
+def tensor_to_img(img_tensor: torch.Tensor):
+    img_tensor = img_tensor.detach().cpu()
+
+    # Denormalize image tensor
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+    denorm_tensor = img_tensor * std + mean
+
+    img = to_pil_image(denorm_tensor)
+    return img
+
+def img_to_tensor(img, size: int, augmentations: list = []) -> torch.Tensor:
+    _, padding = get_scale_and_padding(img, size)
+    transforms = get_transforms(size, padding, augmentations)
+    tensor = apply_transforms_to_img(img, transforms)
+    return tensor
+
+def get_scale_and_padding(img, size):
+    width, height = img.size
+    size_delta = abs(height - width)
+    pad_x = size_delta if height > width else 0
+    pad_y = size_delta if height < width else 0
+    padding = (0, 0, pad_x, pad_y)
+    scale = size / max(width, height)
+    return scale, padding
 
 # Color space transformations
 def get_color_augment(brightness=0.0, contrast=0.0, saturation=0.0):

@@ -8,8 +8,7 @@ from PIL import Image
 
 from . import annotation
 from utils import label_grid
-from utils.transforms import get_transforms, apply_transforms_to_annotations, apply_transforms_to_img
-
+from utils.transforms import get_transforms, apply_transforms_to_annotations, apply_transforms_to_img, get_scale_and_padding
 
 class MMP_Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -90,15 +89,6 @@ class MMP_Dataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         return len(self.image_paths)
-
-def get_scale_and_padding(img, size):
-    width, height = img.size
-    size_delta = abs(height - width)
-    pad_x = size_delta if height > width else 0
-    pad_y = size_delta if height < width else 0
-    padding = (0, 0, pad_x, pad_y)
-    scale = size / max(width, height)
-    return scale, padding
 
 def get_dataloader(
     path_to_data: str,
