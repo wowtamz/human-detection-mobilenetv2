@@ -27,7 +27,7 @@ def train_model(model: SimpleNet, training_dataloader: DataLoader, learnrate: fl
 
     if save:
         timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M")
-        torch.save(model.state_dict(), f"model_{tag}_{timestamp}.pth")
+        torch.save(model.state_dict(), f"{tag}_{timestamp}.pth")
 
     del optimizer
     torch.cuda.empty_cache()
