@@ -7,7 +7,7 @@ import gc
 from torch.utils.data import DataLoader
 from datetime import datetime
 from itertools import repeat
-from models.simplenet import SimpleNet
+from models.simplenet import SimpleNet, BBRNet
 from utils import dataset
 from utils.annotation import AnnotationRect
 from utils.bbr import get_bbr_loss
@@ -70,7 +70,7 @@ def step(
         #loss = focal_loss(prediction, lbl_batch.long())
         loss = loss.mean()
 
-    if hasattr(model, "use_bbr") and model.use_bbr and bbr_pred != None and anchor_grid.any() and groundtruths != None:
+    if isinstance(model, BBRNet) and anchor_grid.any() and groundtruths != None:
         anchor_boxes_flat, bbr_pred_flat, groundtruths_flat = get_preprocessed_bbr_data(lbl_batch, anchor_grid, bbr_pred, groundtruths)
         bbr_loss = get_bbr_loss(anchor_boxes_flat, bbr_pred_flat, groundtruths_flat)
         loss = loss * bbr_loss
@@ -180,9 +180,9 @@ def train_epoch(model, loader: dataset.DataLoader, criterion, optimizer, device,
         images = images.to(device)
         labels = labels.to(device)
 
-        groundtruths = None if not hasattr(model, "use_bbr") or (hasattr(model, "use_bbr") and not model.use_bbr) else [[ann.__array__() for ann in gt_dict[id]] for id in ids] # List of AnnotationRects -> list of arrays
+        bbr_groundtruths = [[ann.__array__() for ann in gt_dict[id]] for id in ids] if isinstance(model, BBRNet) else None # List of AnnotationRects -> list of arrays
         
-        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining, anchor_grid, groundtruths)
+        loss = step(model, criterion, optimizer, images, labels.float(), neg_mining, anchor_grid, bbr_groundtruths)
         print(f"e:{t_epoch}/b:{curr_batch}/l:{loss}")
         curr_batch += 1
     t_epoch += 1

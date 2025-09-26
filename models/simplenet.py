@@ -52,6 +52,6 @@ class BBRNet(SimpleNet):
         bbr_output = self.bbr_layers(features)
         bbr_output = bbr_output.view(batch_size, self.num_widths, self.num_aspect_ratios, self.rows, self.cols, 4)
         
-        anchor_output = super().forward(x)
+        anchor_output, _ = super().forward(x)
 
         return anchor_output, bbr_output
