@@ -104,8 +104,6 @@ class MMP_Dataset(torch.utils.data.Dataset):
                 annotations_scaled = [rect.rotate(rotate_degrees, self.image_size) for rect in annotations_scaled]
             
             def_transforms.insert(2, augmentation)
-            
-        self.annotation_dict[img_id] = annotations_scaled
         
         tfm = torchvision.transforms.Compose(def_transforms)
         img_tensor = tfm(img)
