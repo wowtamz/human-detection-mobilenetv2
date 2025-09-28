@@ -1,3 +1,4 @@
+import os
 import sys
 import torch
 
@@ -48,6 +49,8 @@ test_img_paths = [
 ]
 
 def main():
+
+    os.makedirs("output/ground_truth", exist_ok=True)
 
     training_loader = get_dataloader(train_data_path, img_size, batch_size, num_workers, anchor_grid, min_iou=0.5, is_test=False)
     eval_loader = get_dataloader(eval_data_path, img_size, batch_size, num_workers, anchor_grid, min_iou=0.5, is_test=True)
