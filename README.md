@@ -30,6 +30,8 @@ The model was trained for 25 epochs on the example training dataset and the visu
 |------------------|--------------------|
 | <img src="docs/gt_tamas.jpg" width="190"/><br><sub>Image: Ground Truth Example</sub> | <img src="docs/pred_tamas.jpg" width="190"/><br><sub>Image: Prediction Example</sub> |
 
+> ⚠️ Note: The example dataset includes only 10 images, which is far too small for reliable object detection. This limitation should be kept in mind when reviewing the results and overall performance of the model in these example images.
+
 ---
 
 ## 🚀 Running the Project
