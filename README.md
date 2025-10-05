@@ -20,6 +20,18 @@ The final result is a compact detector that can identify and localize humans in 
 
 ---
 
+## 🖼️ Example Detection
+
+The images below illustrate a comparison between the ground truth (left) and the model prediction (right).
+The ground truth bounding boxes are drawn in green, while the model's predicted boxes are drawn in red.
+The model was trained for 25 epochs on the example training dataset and the visualization demonstrates how well the detector learned to localize and identify objects.
+
+| | |
+|------------------|--------------------|
+| <img src="docs/gt_tamas.jpg" width="190"/><br><sub>Image: Ground Truth Example</sub> | <img src="docs/pred_tamas.jpg" width="190"/><br><sub>Image: Prediction Example</sub> |
+
+---
+
 ## 🚀 Running the Project
 
 This repository includes a `demo.py` script that demonstrates how to train and evaluate the model 
