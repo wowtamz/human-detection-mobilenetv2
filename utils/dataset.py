@@ -61,11 +61,23 @@ class MMP_Dataset(torch.utils.data.Dataset):
     def get_image_id(self, image_path):
         return image_path.removeprefix(self.path_to_data).removesuffix(".jpg")
     
-    def get_image_path(self, image_id):
-        return self.path_to_data + f"{image_id}.jpg"
+    def get_image_path(self, img_id):
+        return self.path_to_data + f"{img_id}.jpg"
     
     def get_annotations(self, img_id) -> list:
         return self.annotation_dict[img_id]
+    
+    def get_scaled_annotations(self, img_id) -> list:
+        img_path = self.get_image_path(img_id)
+        img = Image.open(img_path)
+        scale, padding = get_scale_and_padding(img, self.image_size)
+        transforms = get_transforms(self.image_size, padding, self.augmentations)
+        img_tensor = apply_transforms_to_img(img, transforms)
+
+        annotations = self.get_annotations(img_id)
+        annotations = apply_transforms_to_annotations(annotations, scale, transforms, self.image_size)
+        return annotations
+
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         """

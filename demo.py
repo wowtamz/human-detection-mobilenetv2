@@ -18,7 +18,7 @@ scale_factor = 16.0
 learn_rate = 1e-3
 train_data_path = "example_dataset/train"
 eval_data_path = "example_dataset/val"
-test_data_path = "example_dataset/val"
+test_data_path = "example_dataset/test"
 overfit_path = "example_dataset/overfit"
 anchor_widths = [8, 32, 64, 128, 256]
 aspect_ratios = [0.5, 1.0, 2.0]
@@ -57,7 +57,7 @@ def main():
     test_loader = get_dataloader(test_data_path, img_size, batch_size, num_workers, anchor_grid, min_iou=0.5, is_test=True)
 
     draw_ground_truth_labels(training_loader, "output/ground_truth/")
-
+    
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     model = SimpleNet(len(anchor_widths), len(aspect_ratios), num_rows, num_cols)
 
@@ -97,6 +97,7 @@ def main():
     print("AP bbr training set: ", ap_bbr_train)
     print("AP bbr validation set: ", ap_bbr_val)
     print("AP bbr test set: ", ap_bbr_test)
+    
     print(f"The predictions have been saved inside the '{sys.path[0]}/output' directory.")
     
 def draw_ground_truth_labels(loader: DataLoader, dir="output/ground_truth/"):
@@ -109,8 +110,8 @@ def draw_ground_truth_labels(loader: DataLoader, dir="output/ground_truth/"):
 
             img_tensor = images[i]
             label_grid = labels[i]
-
-            gt_rects = get_matching_rects(anchor_grid, label_grid) if label_grid != None else []
+            img_id = ids[i]
+            gt_rects = loader.dataset.get_scaled_annotations(img_id)
             img = tensor_to_img(img_tensor)
             
             save_prediction(img, [], gt_rects, dir, f"img{k+i}")
@@ -168,7 +169,7 @@ def get_predictions(model, input, labels=None, dir="", tag="") -> list[Annotatio
             pred_label_grid = human_predictions[i]
             rects_scores = get_pred_rects_scores(anchor_grid, pred_label_grid, 0.5)
 
-            nms_rects_scores = non_maximum_suppression(rects_scores, 0.2)
+            nms_rects_scores = non_maximum_suppression(rects_scores, 0.1)
 
             pred_rects = [rect_score[0] for rect_score in nms_rects_scores]
             predicted_rects.append(pred_rects)
